@@ -1,3 +1,11 @@
+* 3.2.2
+    - Moved saved talent sequences to an account-wide library
+    - Added automatic migration from legacy per-character saved sequences
+    - Grouped imported sequences by class in the sequence browser
+    - Pinned the current character class to the top of the list
+    - Disabled loading sequences for classes other than the logged-in character
+    - Read the target class directly from Wowhead URLs during import
+
 * 3.2.1
     - Reorganized the addon into a clean top-level Classic/TBC source layout
     - Added flavor-specific Vanilla and TBC TOCs
