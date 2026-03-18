@@ -14,6 +14,9 @@ local characterIndices = "abcdefghjkmnpqrstvwzxyilou"
 ts.WowheadTalents = {}
 
 local WOWHEAD_TALENT_NAME_MAP = {
+    classic = {
+        -- Populate Classic mappings explicitly per class/tree as calibration data is added.
+    },
     tbc = {
         PALADIN = {
             [0] = {
@@ -170,6 +173,9 @@ local function findLast(haystack, needle)
 end
 
 local function GetWowheadFlavor(rawTalentString)
+    if strfind(rawTalentString, "/classic/") then
+        return "classic"
+    end
     if strfind(rawTalentString, "/tbc/") then
         return "tbc"
     end
@@ -191,17 +197,21 @@ local function FindTalentIndexByName(tabIndex, talentName)
     return nil
 end
 
-local function GetFlavorMappedTalentIndex(rawTalentString, currentTab, encodedId)
-    local flavor = GetWowheadFlavor(rawTalentString)
-    if not flavor then
+local function GetFlavorTalentName(rawTalentString, currentTab, encodedId)
+    local flavorKey = GetWowheadFlavor(rawTalentString)
+    if not flavorKey then
         return nil
     end
 
     local _, classToken = UnitClass("player")
-    local flavorMap = WOWHEAD_TALENT_NAME_MAP[flavor]
+    local flavorMap = WOWHEAD_TALENT_NAME_MAP[flavorKey]
     local classMap = flavorMap and flavorMap[classToken]
     local treeMap = classMap and classMap[currentTab]
-    local talentName = treeMap and treeMap[strlower(encodedId)]
+    return treeMap and treeMap[strlower(encodedId)] or nil
+end
+
+local function GetFlavorMappedTalentIndex(rawTalentString, currentTab, encodedId)
+    local talentName = GetFlavorTalentName(rawTalentString, currentTab, encodedId)
     if not talentName then
         return nil
     end
