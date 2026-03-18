@@ -5,6 +5,7 @@ local GetTalentInfo = GetTalentInfo
 local GetTalentTabInfo = GetTalentTabInfo
 local SetItemButtonTexture = SetItemButtonTexture
 local UnitLevel = UnitLevel
+local UnitClass = UnitClass
 local LearnTalent = LearnTalent
 local CreateFrame = CreateFrame
 local IsAddOnLoaded = IsAddOnLoaded
@@ -17,6 +18,8 @@ local hooksecurefunc = hooksecurefunc
 local format = format
 local ceil = ceil
 local strfind = strfind
+local tinsert = tinsert
+local tremove = tremove
 local GREEN_FONT_COLOR = GREEN_FONT_COLOR
 local NORMAL_FONT_COLOR = NORMAL_FONT_COLOR
 local RED_FONT_COLOR = RED_FONT_COLOR
@@ -34,6 +37,11 @@ local UsingTalented = false
 
 IsTalentSequenceExpanded = false
 TalentSequenceTalents = {}
+
+local CLASS_TOKENS = {
+    "DRUID", "HUNTER", "MAGE", "PALADIN", "PRIEST",
+    "ROGUE", "SHAMAN", "WARLOCK", "WARRIOR"
+}
 
 StaticPopupDialogs[IMPORT_DIALOG] = {
     text = ts.L.IMPORT_DIALOG,
@@ -64,6 +72,118 @@ StaticPopupDialogs[IMPORT_DIALOG] = {
 
 local tooltip = CreateFrame("GameTooltip", "TalentSequenceTooltip", UIParent,
                             "GameTooltipTemplate")
+
+local function GetPlayerClassToken()
+    local _, classToken = UnitClass("player")
+    return classToken
+end
+
+local function GetSequenceStore()
+    if (not TalentSequenceAccountSavedSequences) then
+        TalentSequenceAccountSavedSequences = {}
+    end
+    return TalentSequenceAccountSavedSequences
+end
+
+local function GetCollapsedClassStore()
+    if (not TalentSequenceAccountCollapsedClasses) then
+        TalentSequenceAccountCollapsedClasses = {}
+    end
+    return TalentSequenceAccountCollapsedClasses
+end
+
+local function GetClassDisplayName(classToken)
+    if (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[classToken]) then
+        return LOCALIZED_CLASS_NAMES_MALE[classToken]
+    end
+    if (LOCALIZED_CLASS_NAMES_FEMALE and LOCALIZED_CLASS_NAMES_FEMALE[classToken]) then
+        return LOCALIZED_CLASS_NAMES_FEMALE[classToken]
+    end
+    return classToken or "Unknown"
+end
+
+local function EnsureSequenceMetadata(sequence, defaultClassToken)
+    if (type(sequence) ~= "table") then return end
+    if (not sequence.classToken) then
+        sequence.classToken = defaultClassToken
+    end
+    if (not sequence.className) then
+        sequence.className = GetClassDisplayName(sequence.classToken)
+    end
+end
+
+local function BuildSequenceDisplayRows()
+    local currentClassToken = GetPlayerClassToken()
+    local collapsedClasses = GetCollapsedClassStore()
+    local groupedSequences = {}
+    local classTokens = {currentClassToken}
+    local seenClassTokens = {[currentClassToken] = true}
+    local rows = {}
+
+    for index, sequence in ipairs(GetSequenceStore()) do
+        EnsureSequenceMetadata(sequence, currentClassToken)
+        if (not groupedSequences[sequence.classToken]) then
+            groupedSequences[sequence.classToken] = {}
+            if (not seenClassTokens[sequence.classToken]) then
+                tinsert(classTokens, sequence.classToken)
+                seenClassTokens[sequence.classToken] = true
+            end
+        end
+        tinsert(groupedSequences[sequence.classToken], {
+            type = "sequence",
+            classToken = sequence.classToken,
+            sequence = sequence,
+            sequenceIndex = index
+        })
+    end
+
+    table.sort(classTokens, function(left, right)
+        if (left == currentClassToken) then return true end
+        if (right == currentClassToken) then return false end
+        return GetClassDisplayName(left) < GetClassDisplayName(right)
+    end)
+
+    for _, classToken in ipairs(classTokens) do
+        tinsert(rows, {
+            type = "header",
+            classToken = classToken,
+            className = GetClassDisplayName(classToken),
+            isCurrentClass = (classToken == currentClassToken)
+        })
+        if (classToken == currentClassToken or not collapsedClasses[classToken]) then
+            for _, sequenceRow in ipairs(groupedSequences[classToken] or {}) do
+                tinsert(rows, sequenceRow)
+            end
+        end
+    end
+
+    return rows
+end
+
+local function FindDisplayRowIndexForSequence(displayRows, targetSequence)
+    for index, entry in ipairs(displayRows) do
+        if (entry.type == "sequence" and entry.sequence == targetSequence) then
+            return index
+        end
+    end
+end
+
+local function MigrateSavedSequences()
+    local playerClassToken = GetPlayerClassToken()
+    local sequenceStore = GetSequenceStore()
+
+    if (TalentSequenceSavedSequences and #TalentSequenceSavedSequences > 0) then
+        for _, sequence in ipairs(TalentSequenceSavedSequences) do
+            EnsureSequenceMetadata(sequence, playerClassToken)
+            tinsert(sequenceStore, sequence)
+        end
+        TalentSequenceSavedSequences = {}
+    end
+
+    for _, sequence in ipairs(sequenceStore) do
+        EnsureSequenceMetadata(sequence, playerClassToken)
+    end
+end
 
 function ts.FindFirstUnlearnedIndex()
     for index, talent in pairs(ts.Talents) do
@@ -122,28 +242,36 @@ function ts.UpdateTalentFrame(frame)
     end
 end
 
-local function InsertSequence(talentSequence)
+local function InsertSequence(talentSequence, classToken)
     local tabTotals = {0, 0, 0}
     for _, talent in ipairs(talentSequence) do
         tabTotals[talent.tab] = tabTotals[talent.tab] + 1
     end
     local points = string.format("%d/%d/%d", unpack(tabTotals))
-    tinsert(TalentSequenceSavedSequences, 1,
-            {name = "<unnamed>", talents = talentSequence, points = points})
+    local sequence = {
+        name = "<unnamed>",
+        talents = talentSequence,
+        points = points,
+        classToken = classToken or GetPlayerClassToken()
+    }
+    EnsureSequenceMetadata(sequence, GetPlayerClassToken())
+    tinsert(GetSequenceStore(), 1, sequence)
+    return sequence
 end
 
 function ts:ImportTalents(talentsString)
     local isWowhead = strfind(talentsString,"wowhead")
     if (not isWowhead) then return end
-    local talents = ts.WowheadTalents.GetTalents(talentsString)
+    local talents, classToken = ts.WowheadTalents.GetTalents(talentsString)
     if (talents == nil) then return end
-    InsertSequence(talents)
+    local sequence = InsertSequence(talents, classToken)
+    GetCollapsedClassStore()[classToken] = nil
+    self.PendingRenameSequence = sequence
     if (self.ImportFrame and self.ImportFrame:IsShown()) then
         local scrollBar = self.ImportFrame.scrollBar
         FauxScrollFrame_SetOffset(scrollBar, 0)
         FauxScrollFrame_OnVerticalScroll(scrollBar, 0, SEQUENCES_ROW_HEIGHT)
         ts:UpdateSequencesFrame()
-        ts.ImportFrame.rows[1]:SetForRename()
     end
 end
 
@@ -151,6 +279,7 @@ function ts:SetTalents(talents)
     if (talents == nil) then return end
     ts.Talents = talents
     TalentSequenceTalents = ts.Talents
+    TalentSequenceActiveClass = (#talents > 0) and GetPlayerClassToken() or nil
     if (self.MainFrame and self.MainFrame:IsShown()) then
         local scrollBar = self.MainFrame.scrollBar
         local numTalents = #ts.Talents
@@ -179,16 +308,35 @@ end
 function ts:UpdateSequencesFrame()
     local frame = self.ImportFrame
     frame:ShowAllLoadButtons()
-    FauxScrollFrame_Update(frame.scrollBar, #TalentSequenceSavedSequences,
+    frame.displayRows = BuildSequenceDisplayRows()
+    FauxScrollFrame_Update(frame.scrollBar, #frame.displayRows,
                            MAX_SEQUENCE_ROWS, SEQUENCES_ROW_HEIGHT, nil, nil,
                            nil, nil, nil, nil, true)
     local offset = FauxScrollFrame_GetOffset(frame.scrollBar)
     for i = 1, MAX_SEQUENCE_ROWS do
         local index = i + offset
         local row = frame.rows[i]
-        row:SetSequence(TalentSequenceSavedSequences[index])
+        row:SetEntry(frame.displayRows[index])
+    end
+
+    if (self.PendingRenameSequence) then
+        local rowIndex = FindDisplayRowIndexForSequence(frame.displayRows,
+                                                        self.PendingRenameSequence)
+        if (rowIndex) then
+            local desiredOffset = rowIndex - 1
+            local maxOffset = #frame.displayRows - MAX_SEQUENCE_ROWS
+            if (maxOffset < 0) then maxOffset = 0 end
+            if (desiredOffset > maxOffset) then desiredOffset = maxOffset end
+            FauxScrollFrame_SetOffset(frame.scrollBar, desiredOffset)
+            for i = 1, MAX_SEQUENCE_ROWS do
+                local displayIndex = i + desiredOffset
+                frame.rows[i]:SetEntry(frame.displayRows[displayIndex])
+            end
+            frame.rows[rowIndex - desiredOffset]:SetForRename()
+            self.PendingRenameSequence = nil
         end
     end
+end
 
 function ts.CreateImportFrame(talentFrame)
     local sequencesFrame = nil
@@ -252,16 +400,13 @@ function ts.CreateImportFrame(talentFrame)
         local talentAmountString = row:CreateFontString(nil, "ARTWORK",
                                                         "GameFontWhite")
         talentAmountString:SetPoint("LEFT", nameInput, "RIGHT")
-
-        function row:SetSequence(sequence)
-            if (sequence == nil) then
-                self:Hide()
-            else
-                self:Show()
-                namedLoadButton:SetText(sequence.name)
-                talentAmountString:SetText(sequence.points)
-            end
-        end
+        local headerButton = CreateFrame("Button", nil, row)
+        headerButton:SetPoint("TOPLEFT")
+        headerButton:SetPoint("BOTTOMRIGHT")
+        local headerText = row:CreateFontString(nil, "ARTWORK",
+                                                "GameFontHighlight")
+        headerText:SetPoint("LEFT", headerButton, "LEFT", 4, 0)
+        headerText:SetJustifyH("LEFT")
 
         local deleteButton = CreateFrame("Button", nil, row)
         deleteButton:EnableMouse(true)
@@ -295,27 +440,41 @@ function ts.CreateImportFrame(talentFrame)
             namedLoadButton:Show()
         end)
         nameInput:SetScript("OnEnterPressed", function(self)
-            local offset = FauxScrollFrame_GetOffset(scrollBar)
-            local index = offset + self:GetParent().index
             local inputText = self:GetText()
             local newName = (inputText and inputText ~= "") and inputText or
                             ts.L.UNNAMED
-            TalentSequenceSavedSequences[index].name = newName
+            if (self:GetParent().entry and self:GetParent().entry.sequence) then
+                self:GetParent().entry.sequence.name = newName
+            end
             namedLoadButton:Show()
             self:Hide()
             ts:UpdateSequencesFrame()
         end)
         namedLoadButton:SetScript("OnEnter", function(self)
             tooltip:SetOwner(self, "ANCHOR_RIGHT")
-            tooltip:SetText(ts.L.LOAD_SEQUENCE_TIP)
+            if (self:IsEnabled()) then
+                tooltip:SetText(ts.L.LOAD_SEQUENCE_TIP)
+            else
+                tooltip:SetText(ts.L.LOAD_OTHER_CLASS_TIP)
+            end
             tooltip:Show()
         end)
         namedLoadButton:SetScript("OnLeave", function() tooltip:Hide() end)
         namedLoadButton:SetScript("OnClick", function(self)
-            local offset = FauxScrollFrame_GetOffset(scrollBar)
-            local index = offset + self:GetParent().index
-            local sequence = TalentSequenceSavedSequences[index]
+            local entry = self:GetParent().entry
+            local sequence = entry and entry.sequence
+            if (not sequence) then return end
+            if (sequence.classToken ~= GetPlayerClassToken()) then return end
             ts:SetTalents(sequence.talents)
+        end)
+        headerButton:SetScript("OnClick", function(self)
+            local entry = self:GetParent().entry
+            if (not entry or entry.type ~= "header" or entry.isCurrentClass) then
+                return
+            end
+            local collapsedClasses = GetCollapsedClassStore()
+            collapsedClasses[entry.classToken] = not collapsedClasses[entry.classToken]
+            ts:UpdateSequencesFrame()
         end)
         local function onIconButtonEnter(tooltipText, button, icon)
             icon:SetVertexColor(1, 1, 1, 1)
@@ -341,20 +500,21 @@ function ts.CreateImportFrame(talentFrame)
         end)
         deleteButton:SetScript("OnClick", function(self)
             if (not IsShiftKeyDown()) then return end
-            local offset = FauxScrollFrame_GetOffset(scrollBar)
-            local index = offset + self:GetParent().index
-            local sequence = TalentSequenceSavedSequences[index]
+            local entry = self:GetParent().entry
+            local sequence = entry and entry.sequence
+            local index = entry and entry.sequenceIndex
+            if (not sequence or not index) then return end
             local shouldClearActive = false
             if (sequence and SequencesEqual(sequence.talents, ts.Talents)) then
                 shouldClearActive = true
             end
-            if (#TalentSequenceSavedSequences == 1) then
+            if (#GetSequenceStore() == 1) then
                 shouldClearActive = true
             end
             if (shouldClearActive) then
                 ts:SetTalents({})
             end
-            tremove(TalentSequenceSavedSequences, index)
+            tremove(GetSequenceStore(), index)
             ts:UpdateSequencesFrame()
         end)
         renameButton:SetScript("OnClick", function(self)
@@ -362,10 +522,9 @@ function ts.CreateImportFrame(talentFrame)
         end)
 
         function row:SetForRename()
-            local offset = FauxScrollFrame_GetOffset(scrollBar)
-            local index = offset + self.index
+            if (not self.entry or self.entry.type ~= "sequence") then return end
             namedLoadButton:Hide()
-            nameInput:SetText(TalentSequenceSavedSequences[index].name)
+            nameInput:SetText(self.entry.sequence.name)
             nameInput:Show()
             nameInput:SetFocus()
             nameInput:HighlightText()
@@ -374,6 +533,52 @@ function ts.CreateImportFrame(talentFrame)
             nameInput:ClearFocus()
             nameInput:Hide()
             namedLoadButton:Show()
+            namedLoadButton:Enable()
+            deleteButton:Show()
+            renameButton:Show()
+            headerButton:Hide()
+            headerText:Hide()
+        end
+        function row:SetEntry(entry)
+            self.entry = entry
+            if (entry == nil) then
+                self:Hide()
+                return
+            end
+
+            self:Show()
+            self:SetForLoad()
+            if (entry.type == "header") then
+                namedLoadButton:Hide()
+                talentAmountString:SetText("")
+                deleteButton:Hide()
+                renameButton:Hide()
+                headerButton:Show()
+                headerText:Show()
+                local prefix = "[-]"
+                if (not entry.isCurrentClass and GetCollapsedClassStore()[entry.classToken]) then
+                    prefix = "[+]"
+                end
+                local suffix = ""
+                if (entry.isCurrentClass) then
+                    suffix = " (" .. ts.L.CURRENT_CLASS_LABEL .. ")"
+                end
+                headerText:SetText(prefix .. " " .. entry.className .. suffix)
+                return
+            end
+
+            namedLoadButton:SetText(entry.sequence.name)
+            talentAmountString:SetText(entry.sequence.points)
+            local canLoad = entry.sequence.classToken == GetPlayerClassToken()
+            if (canLoad) then
+                namedLoadButton:Enable()
+                namedLoadButton:GetFontString():SetTextColor(1, 1, 1)
+                talentAmountString:SetTextColor(1, 1, 1)
+            else
+                namedLoadButton:Disable()
+                namedLoadButton:GetFontString():SetTextColor(0.5, 0.5, 0.5)
+                talentAmountString:SetTextColor(0.6, 0.6, 0.6)
+            end
         end
 
         if (rows[i - 1] == nil) then
@@ -638,8 +843,11 @@ local function init(talentFrame)
     if (not TalentSequenceSavedSequences) then
         TalentSequenceSavedSequences = {}
     end
-    if (#TalentSequenceTalents > 0 and #TalentSequenceSavedSequences == 0) then
-        InsertSequence(TalentSequenceTalents)
+    GetSequenceStore()
+    GetCollapsedClassStore()
+    MigrateSavedSequences()
+    if (#TalentSequenceTalents > 0 and #GetSequenceStore() == 0) then
+        InsertSequence(TalentSequenceTalents, GetPlayerClassToken())
     end
     ts.Talents = TalentSequenceTalents
     if (IsTalentSequenceExpanded == 0) then IsTalentSequenceExpanded = false end

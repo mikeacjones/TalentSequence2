@@ -4,10 +4,11 @@ local strlen = strlen
 local strsub = strsub
 local strfind = strfind
 local strlower = strlower
+local strupper = strupper
 local tinsert = tinsert
-local UnitClass = UnitClass
 local GetTalentInfo = GetTalentInfo
 local GetNumTalents = GetNumTalents
+local string_gmatch = string.gmatch
 
 local characterIndices = "abcdefghjkmnpqrstvwzxyilou"
 
@@ -690,6 +691,18 @@ local function GetWowheadFlavor(rawTalentString)
     return nil
 end
 
+local function GetWowheadClass(rawTalentString)
+    for segment in string_gmatch(rawTalentString, "[^/]+") do
+        if segment == "druid" or segment == "hunter" or segment == "mage" or
+            segment == "paladin" or segment == "priest" or segment == "rogue" or
+            segment == "shaman" or segment == "warlock" or segment == "warrior" then
+            return strupper(segment)
+        end
+    end
+
+    return nil
+end
+
 local function FindTalentIndexByName(tabIndex, talentName)
     if not talentName or not GetNumTalents then
         return nil
@@ -711,7 +724,7 @@ local function GetFlavorTalentName(rawTalentString, currentTab, encodedId)
         return nil
     end
 
-    local _, classToken = UnitClass("player")
+    local classToken = GetWowheadClass(rawTalentString)
     local flavorMap = WOWHEAD_TALENT_NAME_MAP[flavorKey]
     local classMap = flavorMap and flavorMap[classToken]
     local treeMap = classMap and classMap[currentTab]
@@ -738,6 +751,10 @@ end
 
 function ts.WowheadTalents.GetTalents(talentString)
     local rawTalentString = talentString
+    local classToken = GetWowheadClass(rawTalentString)
+    if not classToken then
+        return nil
+    end
     local startPosition = findLast(talentString, "/")
     if startPosition then
         talentString = strsub(talentString, startPosition + 1)
@@ -787,5 +804,5 @@ function ts.WowheadTalents.GetTalents(talentString)
             end
         end
     end
-    return talents
+    return talents, classToken
 end

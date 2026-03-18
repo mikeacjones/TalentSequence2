@@ -3,7 +3,8 @@
 ## Version: 3.2.1
 ## Author: Moregelen, Sveng
 ## Notes: Unsupported game client. Use the Vanilla or TBC Classic client-specific TOC.
-## SavedVariablesPerCharacter: IsTalentSequenceExpanded, TalentSequenceTalents, TalentSequenceSavedSequences
+## SavedVariables: TalentSequenceAccountSavedSequences, TalentSequenceAccountCollapsedClasses
+## SavedVariablesPerCharacter: IsTalentSequenceExpanded, TalentSequenceTalents, TalentSequenceSavedSequences, TalentSequenceActiveClass
 ## X-Testers: /u/thisisverytricky
 ## X-Curse-Project-ID: 570281
 ## X-WoWI-ID: 26216

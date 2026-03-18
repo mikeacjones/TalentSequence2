@@ -12,8 +12,10 @@ local localeText = {
         CANCEL = "Cancel",
         WRONG_CLASS = "Unable to import, you're not a %s!",
         LOAD_SEQUENCE_TIP = "Click to Load Sequence",
+        LOAD_OTHER_CLASS_TIP = "Only sequences for your current class can be loaded",
         DELETE_TIP = "<Shift>Click to Delete",
         RENAME_TIP = "Click to Rename",
+        CURRENT_CLASS_LABEL = "Current Character",
         UNNAMED = "<unnamed>"
     }
 };
