@@ -1,3 +1,12 @@
+* 3.2.1
+    - Reorganized the addon into a clean top-level Classic/TBC source layout
+    - Added flavor-specific Vanilla and TBC TOCs
+    - Fixed StaticPopup import dialog compatibility on current Classic clients
+    - Fixed deleting the active sequence so it no longer returns as <unnamed> on reload
+    - Reworked Wowhead parsing to use explicit flavor/class/tree talent-name mappings
+    - Added mapped Wowhead support for TBC Paladin and Druid
+    - Updated packaging and README for the cleaned source tree
+
 # 3.1.0
     - Patched to support Wow Classic Era
 

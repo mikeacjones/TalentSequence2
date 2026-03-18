@@ -1,6 +1,6 @@
 ## Interface: 11508
 ## Title: Talent Sequence 2
-## Version: 3.2.0
+## Version: 3.2.1
 ## Author: Moregelen, Sveng
 ## Notes: Shows what order you should spend talent points in, based on Icy Veins or WowHead talent calculators. Compatible with WoW Classic Anniversary Edition.
 ## SavedVariablesPerCharacter: IsTalentSequenceExpanded, TalentSequenceTalents, TalentSequenceSavedSequences

@@ -1,6 +1,6 @@
 ## Interface: 00000
 ## Title: Talent Sequence 2
-## Version: 3.2.0
+## Version: 3.2.1
 ## Author: Moregelen, Sveng
 ## Notes: Unsupported game client. Use the Vanilla or TBC Classic client-specific TOC.
 ## SavedVariablesPerCharacter: IsTalentSequenceExpanded, TalentSequenceTalents, TalentSequenceSavedSequences
