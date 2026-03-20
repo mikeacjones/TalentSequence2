@@ -1,12 +1,10 @@
-# Talent Sequence 2
+# Talent Planner
 
-Talent Sequence 2 is a Classic-era WoW AddOn that shows a talent-point spending order next to the in-game talent frame.
+Talent Planner is a Classic-era WoW AddOn that shows a talent-point spending order next to the in-game talent frame.
 
 This source tree is the cleaned top-level addon layout used for both supported clients:
-- `TalentSequence2_Vanilla.toc` for Classic Era / Anniversary Vanilla
-- `TalentSequence2_TBC.toc` for Burning Crusade Classic
-
-The generic `TalentSequence2.toc` is intentionally unsupported and exists only to make the client choose the flavor-specific TOC.
+- `TalentPlanner_Vanilla.toc` for Classic Era / Anniversary Vanilla
+- `TalentPlanner_TBC.toc` for Burning Crusade Classic
 
 ## Supports
 
@@ -16,7 +14,7 @@ The generic `TalentSequence2.toc` is intentionally unsupported and exists only t
 
 ## Current Wowhead Support
 
-The Wowhead importer now supports a mapping-based decode path for flavors where the old fixed slot-index parser is unreliable.
+The Wowhead importer supports a mapping-based decode path for flavors where the old fixed slot-index parser is unreliable.
 
 Current mapped support:
 - TBC Warrior
@@ -40,28 +38,32 @@ Classic mappings can be added incrementally by supplying one calibration file pe
 
 ## Source Layout
 
-Top-level files:
-- `TalentSequence.lua` main UI and sequence state
-- `WowheadTalents.lua` Wowhead URL import and per-class mapping overrides
+- `Core/Database.lua` central data access layer
+- `Importers/WowheadData.lua` per-class talent name mappings
+- `Importers/Wowhead.lua` Wowhead URL parsing
+- `UI/Dialogs.lua` import dialog
+- `UI/Manager.lua` sequence management frame
+- `UI/Tracker.lua` talent order display panel
+- `TalentPlanner.lua` init and event wiring
 - `Localization.lua` strings
-- `TalentSequence2_TBC.toc` TBC client entry point
-- `TalentSequence2_Vanilla.toc` Vanilla client entry point
-
-There is no nested addon subfolder in this repo anymore. Packaging is done directly from the root.
+- `TalentPlanner_TBC.toc` TBC client entry point
+- `TalentPlanner_Vanilla.toc` Vanilla client entry point
 
 ## Packaging
 
-Run:
+Releases are built and uploaded automatically via GitHub Actions when a version tag (`v*`) is pushed. The workflow uses [BigWigsMods/packager](https://github.com/BigWigsMods/packager) to publish to CurseForge and WoWInterface.
+
+For local builds:
 
 ```sh
 ./package.sh
 ```
 
-This creates a zip under `.release/` containing a single top-level `TalentSequence2/` addon folder with the Lua files, TOCs, and metadata needed for distribution.
+This creates a zip under `.release/` containing a single top-level `TalentPlanner/` addon folder.
 
 ## Installing Locally
 
-Copy the packaged `TalentSequence2/` folder into:
+Copy the packaged `TalentPlanner/` folder into:
 
 ```text
 World of Warcraft/_anniversary_/Interface/AddOns/
@@ -71,5 +73,5 @@ Then restart the client if you changed TOC metadata, or use `/reload` for Lua-on
 
 ## Notes
 
-- If a saved active sequence is deleted, the addon now clears the active sequence instead of recreating it as `<unnamed>` on reload.
+- If a saved active sequence is deleted, the addon clears the active sequence instead of recreating it as `<unnamed>` on reload.
 - The popup import dialog has been updated to work with the newer `StaticPopup` edit box field naming used by current Classic clients.
