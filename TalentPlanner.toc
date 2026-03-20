@@ -1,6 +1,6 @@
 ## Interface: 00000
 ## Title: Talent Planner
-## Version: 3.3.0
+## Version: 4.0.0
 ## Author: Moregelen, Sveng
 ## Notes: Unsupported game client. Use the Vanilla or TBC Classic client-specific TOC.
 ## SavedVariables: TalentPlannerAccountSavedSequences, TalentPlannerAccountCollapsedClasses
