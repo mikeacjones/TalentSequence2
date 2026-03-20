@@ -10,9 +10,22 @@ local GetTalentInfo = GetTalentInfo
 local GetNumTalents = GetNumTalents
 local string_gmatch = string.gmatch
 
-local characterIndices = "abcdefghjkmnpqrstvwzxyilou"
-
 ts.WowheadTalents = {}
+
+local function NormalizeTalentString(rawTalentString)
+    if (type(rawTalentString) ~= "string") then
+        return nil
+    end
+
+    local normalized = rawTalentString:match("^%s*(.-)%s*$")
+    if (normalized == "") then
+        return nil
+    end
+
+    normalized = normalized:gsub("[?#].*$", "")
+    normalized = normalized:gsub("/+$", "")
+    return normalized
+end
 
 local function FindLast(haystack, needle)
     local lastIndex = nil
@@ -31,11 +44,59 @@ local function GetWowheadFlavor(rawTalentString)
     if strfind(rawTalentString, "/tbc/") then
         return "tbc"
     end
+    if strfind(rawTalentString, "/wotlk/") then
+        return "wotlk"
+    end
+    if strfind(rawTalentString, "/cata/") then
+        return "cata"
+    end
     return nil
+end
+
+local function GetFlavorMetadata(flavorKey)
+    local flavorMap = ts.WowheadData and ts.WowheadData[flavorKey]
+    return flavorMap and flavorMap.__meta or nil
+end
+
+local function GetTalentPointLevel(flavorMeta, pointNumber)
+    if not flavorMeta or pointNumber < 1 then
+        return nil
+    end
+
+    local pointGrantLevels = flavorMeta.pointGrantLevels
+    if type(pointGrantLevels) == "table" then
+        return pointGrantLevels[pointNumber]
+    end
+
+    local startingLevel = flavorMeta.startingLevel or 9
+    return startingLevel + pointNumber
+end
+
+local function GetEncodedTalentToken(flavorMeta, encodedId)
+    if not flavorMeta or not encodedId then
+        return nil, nil
+    end
+
+    local singlePointTokens = flavorMeta.singlePointTokens
+    local maxRankTokens = flavorMeta.maxRankTokens
+    local index = strfind(singlePointTokens, encodedId, 1, true)
+    if index then
+        return strsub(singlePointTokens, index, index), false
+    end
+
+    index = strfind(maxRankTokens, encodedId, 1, true)
+    if index then
+        return strsub(singlePointTokens, index, index), true
+    end
+
+    return nil, nil
 end
 
 local function GetWowheadClass(rawTalentString)
     for segment in string_gmatch(rawTalentString, "[^/]+") do
+        if segment == "death-knight" or segment == "deathknight" then
+            return "DEATHKNIGHT"
+        end
         if segment == "druid" or segment == "hunter" or segment == "mage" or
             segment == "paladin" or segment == "priest" or segment == "rogue" or
             segment == "shaman" or segment == "warlock" or segment == "warrior" then
@@ -67,86 +128,126 @@ local function GetFlavorTalentEntry(rawTalentString, currentTab, encodedId)
         return nil
     end
 
+    local flavorMeta = GetFlavorMetadata(flavorKey)
+    local normalizedToken = GetEncodedTalentToken(flavorMeta, encodedId)
+    if not normalizedToken then
+        return nil
+    end
+
     local classToken = GetWowheadClass(rawTalentString)
     local flavorMap = ts.WowheadData and ts.WowheadData[flavorKey]
     local classMap = flavorMap and flavorMap[classToken]
     local treeMap = classMap and classMap[currentTab]
-    return treeMap and treeMap[strlower(encodedId)] or nil
+    return treeMap and treeMap[normalizedToken] or nil
 end
 
 local function GetMappedTalentResult(rawTalentString, currentTab, encodedId)
+    local flavorMeta = GetFlavorMetadata(GetWowheadFlavor(rawTalentString))
+    local normalizedToken, isMaxRank = GetEncodedTalentToken(flavorMeta, encodedId)
     local entry = GetFlavorTalentEntry(rawTalentString, currentTab, encodedId)
-    if entry then
-        local talentIndex = FindTalentIndexByName(currentTab + 1, entry.name)
-        if talentIndex then
-            return talentIndex, entry
-        end
+    if not entry then
+        return nil, nil, "MAPPING_FAILED"
     end
 
-    return strfind(characterIndices, strlower(encodedId)), nil
+    local importedClassToken = GetWowheadClass(rawTalentString)
+    local playerClassToken = ts.DB.GetPlayerClassToken()
+    if (importedClassToken and importedClassToken ~= playerClassToken) then
+        local talentIndex = strfind(flavorMeta.singlePointTokens, normalizedToken, 1, true)
+        if not talentIndex then
+            return nil, nil, "MAPPING_FAILED"
+        end
+        return talentIndex, entry, nil, isMaxRank
+    end
+
+    local talentIndex = FindTalentIndexByName(currentTab + 1, entry.name)
+    if not talentIndex then
+        return nil, nil, "MAPPING_FAILED"
+    end
+
+    return talentIndex, entry, nil, isMaxRank
 end
 
-local function HasTalentOrder(encodedString)
+local function HasTalentOrder(encodedString, flavorMeta)
+    if not flavorMeta then
+        return false
+    end
+
     for i = 1, strlen(encodedString) do
-        local byte = strbyte(encodedString, i)
-        if byte >= 97 and byte <= 122 then return true end  -- a-z
-        if byte >= 65 and byte <= 90 then return true end   -- A-Z
+        local encodedId = strsub(encodedString, i, i)
+        if GetEncodedTalentToken(flavorMeta, encodedId) then
+            return true
+        end
     end
     return false
 end
 
 function ts.WowheadTalents.GetTalents(talentString)
-    local rawTalentString = talentString
-    local classToken = GetWowheadClass(rawTalentString)
-    if not classToken then
-        return nil
-    end
-    local startPosition = FindLast(talentString, "/")
-    if startPosition then
-        talentString = strsub(talentString, startPosition + 1)
+    local rawTalentString = NormalizeTalentString(talentString)
+    if not rawTalentString then
+        return nil, nil, "INVALID_URL"
     end
 
-    if not HasTalentOrder(talentString) then
+    local classToken = GetWowheadClass(rawTalentString)
+    if not classToken then
+        return nil, nil, "INVALID_URL"
+    end
+    if not GetWowheadFlavor(rawTalentString) then
+        return nil, classToken, "INVALID_URL"
+    end
+    local flavorKey = GetWowheadFlavor(rawTalentString)
+    local flavorMeta = GetFlavorMetadata(flavorKey)
+    if not flavorMeta then
+        return nil, classToken, "IMPORT_FAILED"
+    end
+
+    local startPosition = FindLast(rawTalentString, "/")
+    if startPosition then
+        talentString = strsub(rawTalentString, startPosition + 1)
+    else
+        talentString = rawTalentString
+    end
+
+    if not HasTalentOrder(talentString, flavorMeta) then
         return nil, classToken, "NO_ORDER"
     end
 
     local currentTab = 0
     local talentStringLength = strlen(talentString)
-    local level = 9
     local talents = {}
     local talentCounter = {}
+    local pointsSpent = 0
     for i = 1, talentStringLength, 1 do
         local encodedId = strsub(talentString, i, i)
         if strbyte(encodedId) <= 50 then
             currentTab = tonumber(encodedId)
         else
-            local talentIndex, entry = GetMappedTalentResult(rawTalentString, currentTab, encodedId)
+            local talentIndex, entry, err, isMaxRank =
+                GetMappedTalentResult(rawTalentString, currentTab, encodedId)
             if not talentIndex then
-                return nil
+                return nil, classToken, err or "IMPORT_FAILED"
             end
             local ranks = entry and entry.ranks
-            -- wowhead says to max out the talent if its in caps
-            if strbyte(encodedId) < 97 then
+            if isMaxRank then
                 local _, _, _, _, _, maxRank = GetTalentInfo(currentTab + 1, talentIndex)
                 for j = 1, maxRank, 1 do
-                    level = level + 1
+                    pointsSpent = pointsSpent + 1
                     tinsert(talents, {
                         tab = currentTab + 1,
                         index = talentIndex,
                         rank = j,
-                        level = level,
+                        level = GetTalentPointLevel(flavorMeta, pointsSpent),
                         spellId = ranks and ranks[j],
                     })
                 end
             else
-                level = level + 1
-                talentCounter[encodedId] = (talentCounter[encodedId] or 0) + 1
-                local rank = talentCounter[encodedId]
+                pointsSpent = pointsSpent + 1
+                talentCounter[talentIndex] = (talentCounter[talentIndex] or 0) + 1
+                local rank = talentCounter[talentIndex]
                 tinsert(talents, {
                     tab = currentTab + 1,
                     index = talentIndex,
                     rank = rank,
-                    level = level,
+                    level = GetTalentPointLevel(flavorMeta, pointsSpent),
                     spellId = ranks and ranks[rank],
                 })
             end

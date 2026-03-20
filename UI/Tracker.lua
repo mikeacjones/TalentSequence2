@@ -30,6 +30,21 @@ local RANK_BORDER_DEFAULT_HEIGHT = 32
 local RANK_BORDER_OVERLAY_WIDTH = 64
 local RANK_BORDER_OVERLAY_HEIGHT = 34
 
+function ts:LoadAssignedSequenceForCurrentSpec()
+    local sequence = ts.DB.GetAssignedSequence(ts.DB.GetActiveSpecSlot())
+    if (sequence) then
+        self:SetTalents(sequence.talents, sequence.id)
+    else
+        self:SetTalents({}, nil)
+    end
+end
+
+function ts:ActivateSequence(sequence)
+    if (not sequence) then return end
+    ts.DB.AssignSequenceToSpec(sequence, ts.DB.GetActiveSpecSlot())
+    self:SetTalents(sequence.talents, sequence.id)
+end
+
 local function BuildPlannedRankLookup()
     local planned = {}
     local expected = {}
@@ -131,7 +146,7 @@ function ts.UpdateTalentButtonOverlays()
 end
 
 function ts.FindFirstUnlearnedIndex()
-    for index, talent in pairs(ts.Talents) do
+    for index, talent in ipairs(ts.Talents) do
         local _, _, _, _, currentRank = GetTalentInfo(talent.tab, talent.index)
         if (talent.rank > currentRank) then return index end
     end
@@ -177,9 +192,10 @@ function ts.UpdateTalentFrame(frame)
     end
 end
 
-function ts:SetTalents(talents)
+function ts:SetTalents(talents, sequenceId)
     if (talents == nil) then return end
     ts.Talents = talents
+    ts.ActiveSequenceId = sequenceId
     TalentPlannerTalents = ts.Talents
     TalentPlannerActiveClass = (#talents > 0) and ts.DB.GetPlayerClassToken() or nil
     if (self.MainFrame and self.MainFrame:IsShown()) then
@@ -215,8 +231,11 @@ function ts.CreateMainFrame()
     end)
     mainFrame:RegisterEvent("CHARACTER_POINTS_CHANGED")
     mainFrame:RegisterEvent("SPELLS_CHANGED")
+    mainFrame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
     mainFrame:SetScript("OnEvent", function(self, event)
-        if (((event == "CHARACTER_POINTS_CHANGED") or
+        if (event == "ACTIVE_TALENT_GROUP_CHANGED") then
+            ts:LoadAssignedSequenceForCurrentSpec()
+        elseif (((event == "CHARACTER_POINTS_CHANGED") or
             (event == "SPELLS_CHANGED")) and self:IsVisible()) then
             ts.ScrollFirstUnlearnedTalentIntoView(self)
             ts.UpdateTalentFrame(self)
@@ -412,9 +431,6 @@ function ts.CreateMainFrame()
         if (ts.ImportFrame == nil) then ts.CreateImportFrame() end
         ts.ImportFrame:Show()
         ts.ImportFrame:Raise()
-        if (cfg.raiseManagerOnShow) then
-            ts.ImportFrame:SetFrameLevel(4)
-        end
     end)
     local showButton = CreateFrame("Button", "ShowTalentPlannerButton",
                                    _G[talentFrame], "UIPanelButtonTemplate")

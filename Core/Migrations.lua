@@ -4,7 +4,7 @@ local ipairs = ipairs
 local GetTalentInfo = GetTalentInfo
 
 ts.Migrations = {}
-ts.Migrations.CURRENT_VERSION = 2
+ts.Migrations.CURRENT_VERSION = 3
 
 local CURRENT_VERSION = ts.Migrations.CURRENT_VERSION
 
@@ -74,6 +74,14 @@ RegisterMigration(1, function(sequence)
                 end
             end
         end
+    end
+    return true
+end)
+
+-- v2 -> v3: Add stable sequence ids for per-spec assignments
+RegisterMigration(2, function(sequence)
+    if not sequence.id then
+        sequence.id = ts.DB.GetNextSequenceId()
     end
     return true
 end)

@@ -34,7 +34,8 @@ local function BuildSequenceDisplayRows()
             type = "sequence",
             classToken = sequence.classToken,
             sequence = sequence,
-            sequenceIndex = index
+            sequenceIndex = index,
+            assignmentLabel = ts.DB.GetSequenceAssignmentLabel(sequence.id)
         })
     end
 
@@ -76,6 +77,8 @@ function ts:ImportTalents(talentsString)
     if (talents == nil) then
         if (err == "NO_ORDER") then
             print("|cffff6060Talent Planner:|r " .. ts.L.NO_ORDER)
+        else
+            print("|cffff6060Talent Planner:|r " .. ts.L.IMPORT_FAILED)
         end
         return
     end
@@ -124,9 +127,7 @@ function ts:UpdateSequencesFrame()
 end
 
 function ts.CreateImportFrame()
-    local cfg = ts.FrameConfig
-    local parent = cfg.managerParentToTalentFrame and _G[cfg.talentFrameName] or UIParent
-    local sequencesFrame = CreateFrame("Frame", "TalentPlannerSequences", parent,
+    local sequencesFrame = CreateFrame("Frame", "TalentPlannerSequences", UIParent,
                                        "BasicFrameTemplateWithInset")
     sequencesFrame:Hide()
     sequencesFrame:SetScript("OnShow", function() ts:UpdateSequencesFrame() end)
@@ -252,7 +253,8 @@ function ts.CreateImportFrame()
             local sequence = entry and entry.sequence
             if (not sequence) then return end
             if (sequence.classToken ~= ts.DB.GetPlayerClassToken()) then return end
-            ts:SetTalents(sequence.talents)
+            ts:ActivateSequence(sequence)
+            ts:UpdateSequencesFrame()
         end)
         headerButton:SetScript("OnClick", function(self)
             local entry = self:GetParent().entry
@@ -291,17 +293,11 @@ function ts.CreateImportFrame()
             local sequence = entry and entry.sequence
             local index = entry and entry.sequenceIndex
             if (not sequence or not index) then return end
-            local shouldClearActive = false
-            if (sequence and ts.DB.SequencesEqual(sequence.talents, ts.Talents)) then
-                shouldClearActive = true
-            end
-            if (#ts.DB.GetSequenceStore() == 1) then
-                shouldClearActive = true
-            end
-            if (shouldClearActive) then
-                ts:SetTalents({})
-            end
+            ts.DB.ClearSequenceAssignments(sequence.id)
             tremove(ts.DB.GetSequenceStore(), index)
+            if (ts.ActiveSequenceId == sequence.id) then
+                ts:LoadAssignedSequenceForCurrentSpec()
+            end
             ts:UpdateSequencesFrame()
         end)
         renameButton:SetScript("OnClick", function(self)
@@ -359,7 +355,11 @@ function ts.CreateImportFrame()
             end
 
             namedLoadButton:SetText(entry.sequence.name)
-            talentAmountString:SetText(entry.sequence.points)
+            if (entry.assignmentLabel) then
+                talentAmountString:SetText(entry.sequence.points .. " [" .. entry.assignmentLabel .. "]")
+            else
+                talentAmountString:SetText(entry.sequence.points)
+            end
             local canLoad = entry.sequence.classToken == ts.DB.GetPlayerClassToken()
             if (canLoad) then
                 namedLoadButton:Enable()

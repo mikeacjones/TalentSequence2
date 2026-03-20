@@ -9,7 +9,6 @@ Import a talent sequence from a Wowhead calculator URL, save multiple sequences 
 - Wowhead Classic talent calculator URLs
 - Wowhead TBC talent calculator URLs
 - Blizzard talent UI
-- Talented addon integration
 
 ## In-Game Previews
 
@@ -52,13 +51,15 @@ Found a bug or have a feature request? Please [open an issue on GitHub](https://
 ### Source Layout
 
 - `Core/Database.lua` — central data access layer
-- `Importers/WowheadData.lua` — per-class talent name mappings
+- `Importers/WowheadData_Classic.lua` — Classic Wowhead talent name mappings
+- `Importers/WowheadData_TBC.lua` — TBC Wowhead talent name mappings
 - `Importers/Wowhead.lua` — Wowhead URL parsing
 - `UI/Dialogs.lua` — import dialog
 - `UI/Manager.lua` — sequence management frame
 - `UI/Tracker.lua` — talent order display panel
 - `TalentPlanner.lua` — init and event wiring
-- `Localization.lua` — strings
+- `Localization/Localization.xml` — locale loader
+- `Localization/enUS.lua` and locale-specific files — strings
 
 ### Packaging
 
