@@ -18,9 +18,13 @@ cp "$ROOT_DIR"/README.MD "$ADDON_DIR"/
 cp "$ROOT_DIR"/LICENSE "$ADDON_DIR"/
 cp "$ROOT_DIR"/changes.log "$ADDON_DIR"/
 
-for subdir in Core Importers UI; do
+for subdir in Core Importers Localization UI; do
     mkdir -p "$ADDON_DIR/$subdir"
     cp "$ROOT_DIR/$subdir"/*.lua "$ADDON_DIR/$subdir"/
+    # Copy XML files if present (e.g. Localization loader)
+    for f in "$ROOT_DIR/$subdir"/*.xml; do
+        [ -e "$f" ] && cp "$f" "$ADDON_DIR/$subdir"/
+    done
 done
 
 (
