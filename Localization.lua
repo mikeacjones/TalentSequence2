@@ -17,7 +17,8 @@ local localeText = {
         DELETE_TIP = "<Shift>Click to Delete",
         RENAME_TIP = "Click to Rename",
         CURRENT_CLASS_LABEL = "Current Character",
-        UNNAMED = "<unnamed>"
+        UNNAMED = "<unnamed>",
+        NO_ORDER = "This URL doesn't include a talent order. Enable \"Talent Order\" in the Wowhead calculator before copying the URL."
     }
 };
 

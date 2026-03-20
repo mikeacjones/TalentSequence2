@@ -92,6 +92,15 @@ local function GetMappedTalentIndex(rawTalentString, currentTab, encodedId)
     return strfind(characterIndices, strlower(encodedId))
 end
 
+local function HasTalentOrder(encodedString)
+    for i = 1, strlen(encodedString) do
+        local byte = strbyte(encodedString, i)
+        if byte >= 97 and byte <= 122 then return true end  -- a-z
+        if byte >= 65 and byte <= 90 then return true end   -- A-Z
+    end
+    return false
+end
+
 function ts.WowheadTalents.GetTalents(talentString)
     local rawTalentString = talentString
     local classToken = GetWowheadClass(rawTalentString)
@@ -101,6 +110,10 @@ function ts.WowheadTalents.GetTalents(talentString)
     local startPosition = FindLast(talentString, "/")
     if startPosition then
         talentString = strsub(talentString, startPosition + 1)
+    end
+
+    if not HasTalentOrder(talentString) then
+        return nil, classToken, "NO_ORDER"
     end
 
     local currentTab = 0
