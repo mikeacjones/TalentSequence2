@@ -12,6 +12,8 @@
 Core/Database.lua
 Core/Migrations.lua
 Localization/enUS.lua
+Localization/frFR.lua
+Localization/esES.lua
 Importers/WowheadData_Classic.lua
 Importers/Wowhead.lua
 UI/Dialogs.lua
