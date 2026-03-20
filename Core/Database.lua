@@ -62,6 +62,17 @@ function ts.DB.MigrateSavedSequences()
     for _, sequence in ipairs(sequenceStore) do
         ts.DB.EnsureSequenceMetadata(sequence, playerClassToken)
     end
+
+    ts.Migrations.RunAll()
+
+    if (TalentPlannerTalents and #TalentPlannerTalents > 0) then
+        for _, sequence in ipairs(sequenceStore) do
+            if (ts.DB.SequencesEqual(sequence.talents, TalentPlannerTalents)) then
+                TalentPlannerTalents = sequence.talents
+                break
+            end
+        end
+    end
 end
 
 function ts.DB.InsertSequence(talentSequence, classToken)
@@ -74,7 +85,8 @@ function ts.DB.InsertSequence(talentSequence, classToken)
         name = "<unnamed>",
         talents = talentSequence,
         points = points,
-        classToken = classToken or ts.DB.GetPlayerClassToken()
+        classToken = classToken or ts.DB.GetPlayerClassToken(),
+        version = ts.Migrations and ts.Migrations.CURRENT_VERSION or 1
     }
     ts.DB.EnsureSequenceMetadata(sequence, ts.DB.GetPlayerClassToken())
     tinsert(ts.DB.GetSequenceStore(), 1, sequence)

@@ -13,6 +13,8 @@ local FauxScrollFrame_OnVerticalScroll = FauxScrollFrame_OnVerticalScroll
 local FauxScrollFrame_Update = FauxScrollFrame_Update
 local format = format
 local ceil = ceil
+local GetNumTalents = GetNumTalents
+local PanelTemplates_GetSelectedTab = PanelTemplates_GetSelectedTab
 local GREEN_FONT_COLOR = GREEN_FONT_COLOR
 local NORMAL_FONT_COLOR = NORMAL_FONT_COLOR
 local RED_FONT_COLOR = RED_FONT_COLOR
@@ -23,6 +25,110 @@ local MAX_TALENT_ROWS = 10
 local SCROLLING_WIDTH = 102
 local NONSCROLLING_WIDTH = 84
 local LEVEL_WIDTH = 20
+local RANK_BORDER_DEFAULT_WIDTH = 32
+local RANK_BORDER_DEFAULT_HEIGHT = 32
+local RANK_BORDER_OVERLAY_WIDTH = 64
+local RANK_BORDER_OVERLAY_HEIGHT = 34
+
+local function BuildPlannedRankLookup()
+    local planned = {}
+    local expected = {}
+    local playerLevel = UnitLevel("player")
+    for _, talent in ipairs(ts.Talents) do
+        if not planned[talent.tab] then
+            planned[talent.tab] = {}
+            expected[talent.tab] = {}
+        end
+        local current = planned[talent.tab][talent.index] or 0
+        if talent.rank > current then
+            planned[talent.tab][talent.index] = talent.rank
+        end
+        if talent.level <= playerLevel then
+            local currentExpected = expected[talent.tab][talent.index] or 0
+            if talent.rank > currentExpected then
+                expected[talent.tab][talent.index] = talent.rank
+            end
+        end
+    end
+    return planned, expected
+end
+
+function ts.UpdateTalentButtonOverlays()
+    local cfg = ts.FrameConfig
+    if not cfg then return end
+    local talentFrame = _G[cfg.talentFrameName]
+    if not talentFrame or not talentFrame:IsVisible() then return end
+
+    local hasTalents = ts.Talents and #ts.Talents > 0
+    local planned, expected
+    if hasTalents then
+        planned, expected = BuildPlannedRankLookup()
+    end
+
+    local selectedTab = PanelTemplates_GetSelectedTab(talentFrame) or 1
+    local numTalents = GetNumTalents(selectedTab)
+    local buttonPrefix = cfg.talentFrameName .. "Talent"
+
+    for i = 1, numTalents do
+        local button = _G[buttonPrefix .. i]
+        if button then
+            local _, _, _, _, currentRank = GetTalentInfo(selectedTab, i)
+            local rankText = _G[button:GetName() .. "Rank"]
+            local rankBorder = _G[button:GetName() .. "RankBorder"]
+            if rankText then
+                local showOverlay = false
+                if hasTalents then
+                    local plannedRank = (planned[selectedTab] and planned[selectedTab][i]) or 0
+                    local expectedRank = (expected[selectedTab] and expected[selectedTab][i]) or 0
+                    if plannedRank == 0 and currentRank == 0 then
+                        -- Not in plan and no points: leave default
+                    elseif currentRank > 0 and plannedRank == 0 then
+                        rankText:SetText(format("%d/%d", currentRank, 0))
+                        rankText:SetTextColor(RED_FONT_COLOR.r, RED_FONT_COLOR.g,
+                                              RED_FONT_COLOR.b)
+                        showOverlay = true
+                    elseif currentRank == plannedRank then
+                        rankText:SetText(format("%d/%d", currentRank, plannedRank))
+                        rankText:SetTextColor(1, 0.82, 0)
+                        showOverlay = true
+                    elseif currentRank > expectedRank then
+                        rankText:SetText(format("%d/%d", currentRank, plannedRank))
+                        rankText:SetTextColor(RED_FONT_COLOR.r, RED_FONT_COLOR.g,
+                                              RED_FONT_COLOR.b)
+                        showOverlay = true
+                    else
+                        rankText:SetText(format("%d/%d", currentRank, plannedRank))
+                        if currentRank == 0 then
+                            rankText:SetTextColor(GRAY_FONT_COLOR.r,
+                                                  GRAY_FONT_COLOR.g,
+                                                  GRAY_FONT_COLOR.b)
+                        else
+                            rankText:SetTextColor(GREEN_FONT_COLOR.r,
+                                                  GREEN_FONT_COLOR.g,
+                                                  GREEN_FONT_COLOR.b)
+                        end
+                        showOverlay = true
+                    end
+                end
+                if rankBorder then
+                    if showOverlay then
+                        rankBorder:SetWidth(RANK_BORDER_OVERLAY_WIDTH)
+                        rankBorder:SetHeight(RANK_BORDER_OVERLAY_HEIGHT)
+                        rankBorder:Show()
+                        rankText:Show()
+                        rankText:ClearAllPoints()
+                        rankText:SetPoint("CENTER", rankBorder, "CENTER", 0, 1)
+                    else
+                        rankBorder:SetWidth(RANK_BORDER_DEFAULT_WIDTH)
+                        rankBorder:SetHeight(RANK_BORDER_DEFAULT_HEIGHT)
+                        rankText:ClearAllPoints()
+                        rankText:SetPoint("CENTER", rankBorder, "CENTER", 0, 0)
+                    end
+                end
+            end
+        end
+    end
+end
 
 function ts.FindFirstUnlearnedIndex()
     for index, talent in pairs(ts.Talents) do
@@ -84,6 +190,9 @@ function ts:SetTalents(talents)
         ts.ScrollFirstUnlearnedTalentIntoView(self.MainFrame)
         ts.UpdateTalentFrame(self.MainFrame)
     end
+    if _G.TalentFrame_Update then
+        TalentFrame_Update()
+    end
 end
 
 function ts.CreateMainFrame()
@@ -130,6 +239,16 @@ function ts.CreateMainFrame()
     mainFrame.scrollBar = scrollBar
 
     local tooltip = ts.tooltip
+    tooltip:HookScript("OnTooltipSetSpell", function(self)
+        if (self.talentTrainName) then
+            self:AddLine(" ")
+            self:AddLine(format(
+                "Train |cff71d5ff[%s]|r to |cffffd100(%d/%d)|r",
+                self.talentTrainName, self.talentTrainRank,
+                self.talentTrainMaxRank), 1, 1, 1)
+            self:Show()
+        end
+    end)
     local rows = {}
     for i = 1, MAX_TALENT_ROWS do
         local row = CreateFrame("Frame", "$parentRow" .. i, mainFrame)
@@ -165,12 +284,28 @@ function ts.CreateMainFrame()
             end
         end)
         icon:SetScript("OnEnter", function(self)
-            if (not self.tooltip) then return end
             tooltip:SetOwner(self, "ANCHOR_RIGHT")
-            tooltip:SetText(self.tooltip, nil, nil, nil, nil, true)
-            tooltip:Show()
+            tooltip.talentTrainName = self.talentName
+            tooltip.talentTrainRank = self.talentRank
+            tooltip.talentTrainMaxRank = self.talentMaxRank
+            if (self.spellId) then
+                tooltip:SetSpellByID(self.spellId)
+            elseif (self.tooltip) then
+                tooltip:SetText(self.tooltip, nil, nil, nil, nil, true)
+                if (self.talentName and self.talentRank and self.talentMaxRank) then
+                    tooltip:AddLine(" ")
+                    tooltip:AddLine(format(
+                        "Train |cff71d5ff[%s]|r to |cffffd100(%d/%d)|r",
+                        self.talentName, self.talentRank, self.talentMaxRank),
+                        1, 1, 1)
+                end
+                tooltip:Show()
+            end
         end)
-        icon:SetScript("OnLeave", function() tooltip:Hide() end)
+        icon:SetScript("OnLeave", function()
+            tooltip.talentTrainName = nil
+            tooltip:Hide()
+        end)
 
         local rankBorderTexture = icon:CreateTexture(nil, "OVERLAY")
         rankBorderTexture:SetWidth(32)
@@ -196,6 +331,11 @@ function ts.CreateMainFrame()
             if (not talent) then
                 self:Hide()
                 self.talent = nil
+                self.icon.spellId = nil
+                self.icon.tooltip = nil
+                self.icon.talentName = nil
+                self.icon.talentRank = nil
+                self.icon.talentMaxRank = nil
                 return
             end
 
@@ -205,9 +345,17 @@ function ts.CreateMainFrame()
                 GetTalentInfo(talent.tab, talent.index)
 
             SetItemButtonTexture(self.icon, icon)
-            local tabName = GetTalentTabInfo(talent.tab)
-            self.icon.tooltip = format("%s (%d/%d) - %s", name, talent.rank,
-                                       maxRank, tabName)
+            self.icon.spellId = talent.spellId
+            self.icon.talentName = name
+            self.icon.talentRank = talent.rank
+            self.icon.talentMaxRank = maxRank
+            if (talent.spellId) then
+                self.icon.tooltip = nil
+            else
+                local tabName = GetTalentTabInfo(talent.tab)
+                self.icon.tooltip = format("%s (%d/%d) - %s", name, talent.rank,
+                                           maxRank, tabName)
+            end
             self.icon.rank:SetText(talent.rank)
 
             if (talent.rank < maxRank) then
@@ -298,4 +446,9 @@ function ts.CreateMainFrame()
     showButton:SetScript("OnLeave", function() tooltip:Hide() end)
     showButton:SetWidth(showButton:GetTextWidth() + 10)
     ts.MainFrame = mainFrame
+
+    if _G.TalentFrame_Update then
+        hooksecurefunc("TalentFrame_Update", ts.UpdateTalentButtonOverlays)
+        ts.UpdateTalentButtonOverlays()
+    end
 end

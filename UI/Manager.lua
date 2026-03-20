@@ -72,8 +72,13 @@ end
 function ts:ImportTalents(talentsString)
     local isWowhead = strfind(talentsString,"wowhead")
     if (not isWowhead) then return end
-    local talents, classToken = ts.WowheadTalents.GetTalents(talentsString)
-    if (talents == nil) then return end
+    local talents, classToken, err = ts.WowheadTalents.GetTalents(talentsString)
+    if (talents == nil) then
+        if (err == "NO_ORDER") then
+            print("|cffff6060Talent Planner:|r " .. ts.L.NO_ORDER)
+        end
+        return
+    end
     local sequence = ts.DB.InsertSequence(talents, classToken)
     ts.DB.GetCollapsedClassStore()[classToken] = nil
     self.PendingRenameSequence = sequence
