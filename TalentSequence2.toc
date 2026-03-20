@@ -9,6 +9,11 @@
 ## X-Curse-Project-ID: 570281
 ## X-WoWI-ID: 26216
 
+Core/Database.lua
 Localization.lua
-WowheadTalents.lua
+Importers/WowheadData.lua
+Importers/Wowhead.lua
+UI/Dialogs.lua
+UI/Manager.lua
+UI/Tracker.lua
 TalentSequence.lua

@@ -18,6 +18,11 @@ cp "$ROOT_DIR"/README.MD "$ADDON_DIR"/
 cp "$ROOT_DIR"/LICENSE "$ADDON_DIR"/
 cp "$ROOT_DIR"/changes.log "$ADDON_DIR"/
 
+for subdir in Core Importers UI; do
+    mkdir -p "$ADDON_DIR/$subdir"
+    cp "$ROOT_DIR/$subdir"/*.lua "$ADDON_DIR/$subdir"/
+done
+
 (
     cd "$RELEASE_DIR"
     zip -r "$ZIP_NAME" TalentSequence2 -x ".*" -x "__MACOSX"
