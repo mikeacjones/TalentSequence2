@@ -3,8 +3,8 @@ local addonName, ts = ...
 local hooksecurefunc = hooksecurefunc
 local CreateFrame = CreateFrame
 
-IsTalentSequenceExpanded = false
-TalentSequenceTalents = {}
+IsTalentPlannerExpanded = false
+TalentPlannerTalents = {}
 
 local DEFAULT_CONFIG = {
     talentFrameName = "PlayerTalentFrame",
@@ -51,18 +51,18 @@ local initRun = false
 local function init(frameConfig)
     if (initRun) then return end
     ts.FrameConfig = frameConfig
-    if (not TalentSequenceTalents) then TalentSequenceTalents = {} end
-    if (not TalentSequenceSavedSequences) then
-        TalentSequenceSavedSequences = {}
+    if (not TalentPlannerTalents) then TalentPlannerTalents = {} end
+    if (not TalentPlannerSavedSequences) then
+        TalentPlannerSavedSequences = {}
     end
     ts.DB.GetSequenceStore()
     ts.DB.GetCollapsedClassStore()
     ts.DB.MigrateSavedSequences()
-    if (#TalentSequenceTalents > 0 and #ts.DB.GetSequenceStore() == 0) then
-        ts.DB.InsertSequence(TalentSequenceTalents, ts.DB.GetPlayerClassToken())
+    if (#TalentPlannerTalents > 0 and #ts.DB.GetSequenceStore() == 0) then
+        ts.DB.InsertSequence(TalentPlannerTalents, ts.DB.GetPlayerClassToken())
     end
-    ts.Talents = TalentSequenceTalents
-    if (IsTalentSequenceExpanded == 0) then IsTalentSequenceExpanded = false end
+    ts.Talents = TalentPlannerTalents
+    if (IsTalentPlannerExpanded == 0) then IsTalentPlannerExpanded = false end
     if (ts.MainFrame == nil) then ts.CreateMainFrame() end
     initRun = true
 end

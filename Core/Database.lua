@@ -5,7 +5,7 @@ local UnitClass = UnitClass
 
 ts.DB = {}
 
-ts.tooltip = CreateFrame("GameTooltip", "TalentSequenceTooltip", UIParent,
+ts.tooltip = CreateFrame("GameTooltip", "TalentPlannerTooltip", UIParent,
                           "GameTooltipTemplate")
 
 function ts.DB.GetPlayerClassToken()
@@ -24,17 +24,17 @@ function ts.DB.GetClassDisplayName(classToken)
 end
 
 function ts.DB.GetSequenceStore()
-    if (not TalentSequenceAccountSavedSequences) then
-        TalentSequenceAccountSavedSequences = {}
+    if (not TalentPlannerAccountSavedSequences) then
+        TalentPlannerAccountSavedSequences = {}
     end
-    return TalentSequenceAccountSavedSequences
+    return TalentPlannerAccountSavedSequences
 end
 
 function ts.DB.GetCollapsedClassStore()
-    if (not TalentSequenceAccountCollapsedClasses) then
-        TalentSequenceAccountCollapsedClasses = {}
+    if (not TalentPlannerAccountCollapsedClasses) then
+        TalentPlannerAccountCollapsedClasses = {}
     end
-    return TalentSequenceAccountCollapsedClasses
+    return TalentPlannerAccountCollapsedClasses
 end
 
 function ts.DB.EnsureSequenceMetadata(sequence, defaultClassToken)
@@ -51,12 +51,12 @@ function ts.DB.MigrateSavedSequences()
     local playerClassToken = ts.DB.GetPlayerClassToken()
     local sequenceStore = ts.DB.GetSequenceStore()
 
-    if (TalentSequenceSavedSequences and #TalentSequenceSavedSequences > 0) then
-        for _, sequence in ipairs(TalentSequenceSavedSequences) do
+    if (TalentPlannerSavedSequences and #TalentPlannerSavedSequences > 0) then
+        for _, sequence in ipairs(TalentPlannerSavedSequences) do
             ts.DB.EnsureSequenceMetadata(sequence, playerClassToken)
             tinsert(sequenceStore, sequence)
         end
-        TalentSequenceSavedSequences = {}
+        TalentPlannerSavedSequences = {}
     end
 
     for _, sequence in ipairs(sequenceStore) do

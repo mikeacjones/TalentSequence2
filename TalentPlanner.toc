@@ -1,10 +1,10 @@
 ## Interface: 00000
-## Title: Talent Sequence 2
+## Title: Talent Planner
 ## Version: 3.3.0
 ## Author: Moregelen, Sveng
 ## Notes: Unsupported game client. Use the Vanilla or TBC Classic client-specific TOC.
-## SavedVariables: TalentSequenceAccountSavedSequences, TalentSequenceAccountCollapsedClasses
-## SavedVariablesPerCharacter: IsTalentSequenceExpanded, TalentSequenceTalents, TalentSequenceSavedSequences, TalentSequenceActiveClass
+## SavedVariables: TalentPlannerAccountSavedSequences, TalentPlannerAccountCollapsedClasses
+## SavedVariablesPerCharacter: IsTalentPlannerExpanded, TalentPlannerTalents, TalentPlannerSavedSequences, TalentPlannerActiveClass
 ## X-Testers: /u/thisisverytricky
 ## X-Curse-Project-ID: 570281
 ## X-WoWI-ID: 26216
@@ -16,4 +16,4 @@ Importers/Wowhead.lua
 UI/Dialogs.lua
 UI/Manager.lua
 UI/Tracker.lua
-TalentSequence.lua
+TalentPlanner.lua

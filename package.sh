@@ -3,11 +3,11 @@ set -eu
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 RELEASE_DIR="$ROOT_DIR/.release"
-ADDON_DIR="$RELEASE_DIR/TalentSequence2"
-VERSION="$(awk '/^## Version:/ { print $3; exit }' "$ROOT_DIR/TalentSequence2_TBC.toc")"
+ADDON_DIR="$RELEASE_DIR/TalentPlanner"
+VERSION="$(awk '/^## Version:/ { print $3; exit }' "$ROOT_DIR/TalentPlanner_TBC.toc")"
 BRANCH="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD)"
 SAFE_BRANCH="$(printf '%s' "$BRANCH" | tr '/' '-')"
-ZIP_NAME="TalentSequence2-${VERSION}-${SAFE_BRANCH}.zip"
+ZIP_NAME="TalentPlanner-${VERSION}-${SAFE_BRANCH}.zip"
 
 rm -rf "$RELEASE_DIR"
 mkdir -p "$ADDON_DIR"
@@ -25,7 +25,7 @@ done
 
 (
     cd "$RELEASE_DIR"
-    zip -r "$ZIP_NAME" TalentSequence2 -x ".*" -x "__MACOSX"
+    zip -r "$ZIP_NAME" TalentPlanner -x ".*" -x "__MACOSX"
 )
 
 echo "Created $RELEASE_DIR/$ZIP_NAME"

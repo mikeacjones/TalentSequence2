@@ -74,8 +74,8 @@ end
 function ts:SetTalents(talents)
     if (talents == nil) then return end
     ts.Talents = talents
-    TalentSequenceTalents = ts.Talents
-    TalentSequenceActiveClass = (#talents > 0) and ts.DB.GetPlayerClassToken() or nil
+    TalentPlannerTalents = ts.Talents
+    TalentPlannerActiveClass = (#talents > 0) and ts.DB.GetPlayerClassToken() or nil
     if (self.MainFrame and self.MainFrame:IsShown()) then
         local scrollBar = self.MainFrame.scrollBar
         local numTalents = #ts.Talents
@@ -268,26 +268,26 @@ function ts.CreateMainFrame()
             ts.ImportFrame:SetFrameLevel(4)
         end
     end)
-    local showButton = CreateFrame("Button", "ShowTalentOrderButton",
+    local showButton = CreateFrame("Button", "ShowTalentPlannerButton",
                                    _G[talentFrame], "UIPanelButtonTemplate")
     showButton:SetPoint(unpack(cfg.showButtonAnchor))
     if (cfg.showButtonHeight) then
         showButton:SetHeight(cfg.showButtonHeight)
     end
-    showButton:SetText("  Talent Sequence >>  ")
-    if (IsTalentSequenceExpanded) then
-        showButton:SetText("  Talent Sequence <<  ")
+    showButton:SetText("  Talent Planner >>  ")
+    if (IsTalentPlannerExpanded) then
+        showButton:SetText("  Talent Planner <<  ")
         mainFrame:Show()
     end
     showButton.tooltip = ts.L.TOGGLE
     showButton:SetScript("OnClick", function(self)
-        IsTalentSequenceExpanded = not IsTalentSequenceExpanded
-        if (IsTalentSequenceExpanded) then
+        IsTalentPlannerExpanded = not IsTalentPlannerExpanded
+        if (IsTalentPlannerExpanded) then
             mainFrame:Show()
-            self:SetText("  Talent Sequence <<  ")
+            self:SetText("  Talent Planner <<  ")
         else
             mainFrame:Hide()
-            self:SetText("  Talent Sequence >>  ")
+            self:SetText("  Talent Planner >>  ")
         end
     end)
     showButton:SetScript("OnEnter", function(self)

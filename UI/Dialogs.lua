@@ -3,7 +3,7 @@ local _, ts = ...
 local _G = _G
 local StaticPopup_Show = StaticPopup_Show
 
-local IMPORT_DIALOG = "TALENTSEQUENCEIMPORTDIALOG"
+local IMPORT_DIALOG = "TALENTPLANNERIMPORTDIALOG"
 
 ts.Dialogs = {}
 

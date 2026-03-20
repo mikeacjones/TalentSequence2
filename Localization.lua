@@ -4,7 +4,7 @@ local GetLocale = GetLocale
 
 local localeText = {
     enUS = {
-        TOGGLE = "Toggle Talent Sequence Window",
+        TOGGLE = "Toggle Talent Planner Window",
         LOAD = "Load",
         MANAGE = "Manage",
         IMPORT = "Import URL",

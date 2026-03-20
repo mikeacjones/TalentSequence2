@@ -121,7 +121,7 @@ end
 function ts.CreateImportFrame()
     local cfg = ts.FrameConfig
     local parent = cfg.managerParentToTalentFrame and _G[cfg.talentFrameName] or UIParent
-    local sequencesFrame = CreateFrame("Frame", "TalentSequences", parent,
+    local sequencesFrame = CreateFrame("Frame", "TalentPlannerSequences", parent,
                                        "BasicFrameTemplateWithInset")
     sequencesFrame:Hide()
     sequencesFrame:SetScript("OnShow", function() ts:UpdateSequencesFrame() end)
@@ -135,11 +135,11 @@ function ts.CreateImportFrame()
     sequencesFrame:SetClampedToScreen(true)
     sequencesFrame:SetScript("OnMouseDown", sequencesFrame.StartMoving)
     sequencesFrame:SetScript("OnMouseUp", sequencesFrame.StopMovingOrSizing)
-    sequencesFrame.TitleText:SetText("Talent Sequences")
+    sequencesFrame.TitleText:SetText("Talent Planner")
     function sequencesFrame:ShowAllLoadButtons()
         for _, row in ipairs(self.rows) do row:SetForLoad() end
     end
-    tinsert(UISpecialFrames, "TalentSequences")
+    tinsert(UISpecialFrames, "TalentPlannerSequences")
     local scrollBar = CreateFrame("ScrollFrame", "$parentScrollBar",
                                   sequencesFrame, "FauxScrollFrameTemplate")
     scrollBar:SetPoint("TOPLEFT", sequencesFrame.InsetBg, "TOPLEFT", 5, -6)
