@@ -1,55 +1,66 @@
 # Talent Planner
 
-Talent Planner is a Classic-era WoW AddOn that shows a talent-point spending order next to the in-game talent frame.
+Talent Planner is a WoW AddOn for Classic Anniversary Edition and Burning Crusade Classic that displays a planned talent order next to the in-game talent window while you level.
 
-This source tree is the cleaned top-level addon layout used for both supported clients:
-- `TalentPlanner_Vanilla.toc` for Classic Era / Anniversary Vanilla
-- `TalentPlanner_TBC.toc` for Burning Crusade Classic
+Import a talent sequence from a Wowhead calculator URL, save multiple sequences per character, and load the one you want to follow in-game.
 
 ## Supports
 
-- Wowhead talent calculator URLs
+- Wowhead Classic talent calculator URLs
+- Wowhead TBC talent calculator URLs
 - Blizzard talent UI
 - Talented addon integration
 
-## Current Wowhead Support
+## In-Game Previews
 
-The Wowhead importer supports a mapping-based decode path for flavors where the old fixed slot-index parser is unreliable.
+![Blizzard frame displaying Talent Planner](https://i.imgur.com/elwqFaH.jpeg)
 
-Current mapped support:
-- TBC Warrior
-- TBC Paladin
-- TBC Hunter
-- TBC Rogue
-- TBC Priest
-- TBC Shaman
-- TBC Mage
-- TBC Warlock
-- TBC Druid
+## How To Use
 
-The parser is structured as:
-- `flavor -> class -> tree -> wowhead code -> talent name`
+### Add a Wowhead Talent Sequence
 
-It then resolves the real in-game talent index dynamically with `GetTalentInfo`, which makes the importer much more robust across Classic/TBC tree differences.
+1. Build your talent sequence in the Wowhead calculator for your game version:
+   - Classic Era / Anniversary: use the Classic calculator
+   - Burning Crusade Classic: use the TBC calculator
+2. Ensure that **Talent Order** is enabled in Wowhead. You must expand the Talent Order panel and keep it active, or Wowhead may not preserve the point-by-point sequence in the URL.
+3. Copy the entire Wowhead talent calculator URL.
+4. In-game, open your Talent window and click **Talent Planner >>**
+5. Click **Import**
+6. Paste the Wowhead talent calculator URL
+7. Name the sequence and press Enter
+8. Click **Load** on that saved sequence to make it active
+9. Spend points as you level using the sequence shown beside the talent window
 
-Classic mappings can be added incrementally by supplying one calibration file per tree with:
-- the full Wowhead URL
-- the exact point-by-point order
+![screenshot](https://i.imgur.com/dZAMbix.png) ![screenshot](https://i.imgur.com/3BZAal9.png)
 
-## Source Layout
+## Wowhead Import Coverage
 
-- `Core/Database.lua` central data access layer
-- `Importers/WowheadData.lua` per-class talent name mappings
-- `Importers/Wowhead.lua` Wowhead URL parsing
-- `UI/Dialogs.lua` import dialog
-- `UI/Manager.lua` sequence management frame
-- `UI/Tracker.lua` talent order display panel
-- `TalentPlanner.lua` init and event wiring
-- `Localization.lua` strings
-- `TalentPlanner_TBC.toc` TBC client entry point
-- `TalentPlanner_Vanilla.toc` Vanilla client entry point
+TBC Wowhead imports use explicit class and tree mappings for all nine classes. Classic Wowhead support is also available.
 
-## Packaging
+The importer resolves in-game talent indices dynamically with `GetTalentInfo`, making it robust across Classic/TBC tree differences.
+
+## Origins
+
+This AddOn is a fork of the original [Talent Sequence](https://www.curseforge.com/wow/addons/talent-sequence/) AddOn, updated for current Classic clients with flavor-specific TOCs, improved Wowhead import handling, and compatibility fixes for current Classic UI behavior.
+
+## Issues and Feedback
+
+Found a bug or have a feature request? Please [open an issue on GitHub](https://github.com/mikeacjones/TalentPlanner/issues).
+
+## Development
+
+### Source Layout
+
+- `Core/Database.lua` — central data access layer
+- `Importers/WowheadData.lua` — per-class talent name mappings
+- `Importers/Wowhead.lua` — Wowhead URL parsing
+- `UI/Dialogs.lua` — import dialog
+- `UI/Manager.lua` — sequence management frame
+- `UI/Tracker.lua` — talent order display panel
+- `TalentPlanner.lua` — init and event wiring
+- `Localization.lua` — strings
+
+### Packaging
 
 Releases are built and uploaded automatically via GitHub Actions when a version tag (`v*`) is pushed. The workflow uses [BigWigsMods/packager](https://github.com/BigWigsMods/packager) to publish to CurseForge and WoWInterface.
 
@@ -59,9 +70,7 @@ For local builds:
 ./package.sh
 ```
 
-This creates a zip under `.release/` containing a single top-level `TalentPlanner/` addon folder.
-
-## Installing Locally
+### Installing Locally
 
 Copy the packaged `TalentPlanner/` folder into:
 
@@ -69,9 +78,4 @@ Copy the packaged `TalentPlanner/` folder into:
 World of Warcraft/_anniversary_/Interface/AddOns/
 ```
 
-Then restart the client if you changed TOC metadata, or use `/reload` for Lua-only changes.
-
-## Notes
-
-- If a saved active sequence is deleted, the addon clears the active sequence instead of recreating it as `<unnamed>` on reload.
-- The popup import dialog has been updated to work with the newer `StaticPopup` edit box field naming used by current Classic clients.
+Restart the client if you changed TOC metadata, or use `/reload` for Lua-only changes.
