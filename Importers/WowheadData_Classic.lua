@@ -1,7 +1,7 @@
 local _, ts = ...
 
 -- Auto-generated from Wowhead CLASSIC talent calculator data
--- Run: python3 tools/generate_wowhead_data.py classic --fetch <output>
+-- Run: uv run --project tools tools/generate_wowhead_data.py classic --fetch <output>
 -- Single-point tokens: abcdefghjkmnpqrstvwzxyilou468-~!
 -- Max-rank tokens: ABCDEFGHJKMNPQRSTVWZXYILOU579_^.
 -- Baseline talent level: 10
