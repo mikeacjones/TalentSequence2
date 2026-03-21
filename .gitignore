@@ -1,3 +1,5 @@
 .release/
 .DS_Store
 tools/.venv/
+__pycache__/
+*.pyc

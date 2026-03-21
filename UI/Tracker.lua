@@ -215,7 +215,6 @@ function ts.CreateMainFrame()
     local cfg = ts.FrameConfig
     local talentFrame = cfg.talentFrameName
     local mainFrame = CreateFrame("Frame", nil, _G[talentFrame], BackdropTemplateMixin and "BackdropTemplate")
-    mainFrame:SetPoint("CENTER")
     mainFrame:SetSize(128, 128)
     mainFrame:SetPoint(cfg.trackerAnchors[1][1], talentFrame, cfg.trackerAnchors[1][2], cfg.trackerAnchors[1][3], cfg.trackerAnchors[1][4])
     mainFrame:SetPoint(cfg.trackerAnchors[2][1], talentFrame, cfg.trackerAnchors[2][2], cfg.trackerAnchors[2][3], cfg.trackerAnchors[2][4])

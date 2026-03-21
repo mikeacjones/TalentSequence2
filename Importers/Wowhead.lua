@@ -181,6 +181,19 @@ local function HasTalentOrder(encodedString, flavorMeta)
     return false
 end
 
+local function GetMaxRankForEntry(tabIndex, talentIndex, entry)
+    if (entry and type(entry.ranks) == "table" and #entry.ranks > 0) then
+        return #entry.ranks
+    end
+
+    local _, _, _, _, _, maxRank = GetTalentInfo(tabIndex, talentIndex)
+    return maxRank
+end
+
+local function GetTalentCounterKey(tabIndex, talentIndex)
+    return tostring(tabIndex) .. ":" .. tostring(talentIndex)
+end
+
 function ts.WowheadTalents.GetTalents(talentString)
     local rawTalentString = NormalizeTalentString(talentString)
     if not rawTalentString then
@@ -218,7 +231,7 @@ function ts.WowheadTalents.GetTalents(talentString)
     local pointsSpent = 0
     for i = 1, talentStringLength, 1 do
         local encodedId = strsub(talentString, i, i)
-        if strbyte(encodedId) <= 50 then
+        if strfind("012", encodedId, 1, true) then
             currentTab = tonumber(encodedId)
         else
             local talentIndex, entry, err, isMaxRank =
@@ -228,7 +241,10 @@ function ts.WowheadTalents.GetTalents(talentString)
             end
             local ranks = entry and entry.ranks
             if isMaxRank then
-                local _, _, _, _, _, maxRank = GetTalentInfo(currentTab + 1, talentIndex)
+                local maxRank = GetMaxRankForEntry(currentTab + 1, talentIndex, entry)
+                if not maxRank or maxRank < 1 then
+                    return nil, classToken, "MAPPING_FAILED"
+                end
                 for j = 1, maxRank, 1 do
                     pointsSpent = pointsSpent + 1
                     tinsert(talents, {
@@ -241,8 +257,9 @@ function ts.WowheadTalents.GetTalents(talentString)
                 end
             else
                 pointsSpent = pointsSpent + 1
-                talentCounter[talentIndex] = (talentCounter[talentIndex] or 0) + 1
-                local rank = talentCounter[talentIndex]
+                local counterKey = GetTalentCounterKey(currentTab + 1, talentIndex)
+                talentCounter[counterKey] = (talentCounter[counterKey] or 0) + 1
+                local rank = talentCounter[counterKey]
                 tinsert(talents, {
                     tab = currentTab + 1,
                     index = talentIndex,
