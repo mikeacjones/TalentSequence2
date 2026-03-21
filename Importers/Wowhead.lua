@@ -231,7 +231,7 @@ function ts.WowheadTalents.GetTalents(talentString)
     local pointsSpent = 0
     for i = 1, talentStringLength, 1 do
         local encodedId = strsub(talentString, i, i)
-        if strbyte(encodedId) <= 50 then
+        if strfind("012", encodedId, 1, true) then
             currentTab = tonumber(encodedId)
         else
             local talentIndex, entry, err, isMaxRank =
