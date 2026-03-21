@@ -1,6 +1,6 @@
 ## Interface: 11508
 ## Title: Talent Planner
-## Version: 4.2.0
+## Version: 4.2.1
 ## Author: Moregelen, Sveng
 ## Notes: Shows what order you should spend talent points in, based on Wowhead talent calculators. Compatible with WoW Classic Anniversary Edition.
 ## SavedVariables: TalentPlannerAccountSavedSequences, TalentPlannerAccountCollapsedClasses, TalentPlannerAccountNextSequenceId
