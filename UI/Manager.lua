@@ -71,9 +71,19 @@ local function FindDisplayRowIndexForSequence(displayRows, targetSequence)
 end
 
 function ts:ImportTalents(talentsString)
-    local isWowhead = strfind(talentsString,"wowhead")
-    if (not isWowhead) then return end
-    local talents, classToken, err = ts.WowheadTalents.GetTalents(talentsString)
+    local talents, classToken, err
+
+    if (ts.WebUITalents and (ts.WebUITalents.IsJSON(talentsString) or ts.WebUITalents.IsURL(talentsString))) then
+        talents, classToken, err = ts.WebUITalents.GetTalents(talentsString)
+    elseif (ts.WarcraftTavernTalents and ts.WarcraftTavernTalents.IsURL(talentsString)) then
+        talents, classToken, err = ts.WarcraftTavernTalents.GetTalents(talentsString)
+    elseif strfind(talentsString, "wowhead") then
+        talents, classToken, err = ts.WowheadTalents.GetTalents(talentsString)
+    else
+        print("|cffff6060Talent Planner:|r " .. ts.L.IMPORT_FAILED)
+        return
+    end
+
     if (talents == nil) then
         if (err == "NO_ORDER") then
             print("|cffff6060Talent Planner:|r " .. ts.L.NO_ORDER)

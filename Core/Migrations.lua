@@ -1,7 +1,6 @@
 local _, ts = ...
 
 local ipairs = ipairs
-local GetTalentInfo = GetTalentInfo
 
 ts.Migrations = {}
 ts.Migrations.CURRENT_VERSION = 3
@@ -32,47 +31,14 @@ function ts.Migrations.RunAll()
     end
 end
 
--- v1 -> v2: Add spellId to each talent entry from WowheadData
--- Only runs for sequences matching the current player's class since
--- GetTalentInfo only returns names for the logged-in class. Other-class
--- sequences will be migrated when that class logs in.
+-- v1 -> v2: Add spellId to each talent entry from TalentResolver
 RegisterMigration(1, function(sequence)
-    if not ts.WowheadData or not sequence.classToken then return false end
-    if sequence.classToken ~= ts.DB.GetPlayerClassToken() then return false end
-
-    local flavorKey = nil
-    for key in pairs(ts.WowheadData) do
-        if ts.WowheadData[key][sequence.classToken] then
-            flavorKey = key
-            break
-        end
-    end
-    if not flavorKey then return false end
-
-    local classMap = ts.WowheadData[flavorKey][sequence.classToken]
-    if not classMap then return false end
-
-    -- Build reverse lookup: (tab, talentName) -> wowhead entry
-    local nameLookup = {}
-    for tab, talents in pairs(classMap) do
-        nameLookup[tab] = {}
-        for _, entry in pairs(talents) do
-            nameLookup[tab][entry.name] = entry
-        end
-    end
+    if not ts.TalentResolver or not sequence.classToken then return false end
 
     for _, talent in ipairs(sequence.talents) do
         if not talent.spellId then
-            local tabLookup = nameLookup[talent.tab - 1]
-            if tabLookup then
-                local name = GetTalentInfo(talent.tab, talent.index)
-                if name then
-                    local entry = tabLookup[name]
-                    if entry and entry.ranks and entry.ranks[talent.rank] then
-                        talent.spellId = entry.ranks[talent.rank]
-                    end
-                end
-            end
+            talent.spellId = ts.TalentResolver.GetSpellId(
+                sequence.classToken, talent.tab, talent.index, talent.rank)
         end
     end
     return true
