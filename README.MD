@@ -2,12 +2,14 @@
 
 Talent Planner is a WoW AddOn for Classic Anniversary Edition and Burning Crusade Classic that displays a planned talent order next to the in-game talent window while you level.
 
-Import a talent sequence from a Wowhead calculator URL, save multiple sequences per character, and load the one you want to follow in-game.
+Import a talent sequence from Wowhead, Warcraft Tavern, or the Talent Planner Web UI, save multiple sequences per character, and load the one you want to follow in-game.
 
 ## Supports
 
 - Wowhead Classic talent calculator URLs
 - Wowhead TBC talent calculator URLs
+- Warcraft Tavern talent calculator URLs
+- Talent Planner Web UI exports and URLs: https://mikeacjones.github.io/TalentPlanner-WebUI
 - Blizzard talent UI
 
 ## In-Game Previews
@@ -16,27 +18,28 @@ Import a talent sequence from a Wowhead calculator URL, save multiple sequences 
 
 ## How To Use
 
-### Add a Wowhead Talent Sequence
+### Add a Talent Sequence
 
-1. Build your talent sequence in the Wowhead calculator for your game version:
-   - Classic Era / Anniversary: use the Classic calculator
-   - Burning Crusade Classic: use the TBC calculator
-2. Ensure that **Talent Order** is enabled in Wowhead. You must expand the Talent Order panel and keep it active, or Wowhead may not preserve the point-by-point sequence in the URL.
-3. Copy the entire Wowhead talent calculator URL.
+1. Build or export your talent sequence from one of the supported sources:
+   - Wowhead Classic or TBC calculator URL
+   - Warcraft Tavern calculator URL
+   - Talent Planner Web UI export or URL: https://mikeacjones.github.io/TalentPlanner-WebUI
+2. If using Wowhead, ensure that **Talent Order** is enabled. You must expand the Talent Order panel and keep it active, or Wowhead may not preserve the point-by-point sequence in the URL.
+3. Copy the full URL or exported JSON.
 4. In-game, open your Talent window and click **Talent Planner >>**
 5. Click **Import**
-6. Paste the Wowhead talent calculator URL
+6. Paste the URL or exported JSON
 7. Name the sequence and press Enter
 8. Click **Load** on that saved sequence to make it active
 9. Spend points as you level using the sequence shown beside the talent window
 
 ![screenshot](https://i.imgur.com/dZAMbix.png) ![screenshot](https://i.imgur.com/3BZAal9.png)
 
-## Wowhead Import Coverage
+## Import Coverage
 
 TBC Wowhead imports use explicit class and tree mappings for all nine classes. Classic Wowhead support is also available.
 
-The importer resolves in-game talent indices dynamically with `GetTalentInfo`, making it robust across Classic/TBC tree differences.
+Warcraft Tavern URLs and Talent Planner Web UI URLs / exports are also supported.
 
 ## Origins
 
