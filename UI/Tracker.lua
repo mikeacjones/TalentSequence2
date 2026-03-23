@@ -308,7 +308,6 @@ function ts:SetTalents(talents, sequenceId)
     ts.Talents = talents
     ts.ActiveSequenceId = sequenceId
     TalentPlannerTalents = ts.Talents
-    TalentPlannerActiveClass = (#talents > 0) and ts.DB.GetPlayerClassToken() or nil
     if (self.MainFrame and self.MainFrame:IsShown()) then
         local scrollBar = self.MainFrame.scrollBar
         local numTalents = #ts.Talents
