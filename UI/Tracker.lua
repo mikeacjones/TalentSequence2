@@ -7,6 +7,8 @@ local SetItemButtonTexture = SetItemButtonTexture
 local UnitLevel = UnitLevel
 local LearnTalent = LearnTalent
 local CreateFrame = CreateFrame
+local GetSpellInfo = GetSpellInfo
+local GetNumTalentTabs = GetNumTalentTabs
 local FauxScrollFrame_SetOffset = FauxScrollFrame_SetOffset
 local FauxScrollFrame_GetOffset = FauxScrollFrame_GetOffset
 local FauxScrollFrame_OnVerticalScroll = FauxScrollFrame_OnVerticalScroll
@@ -30,19 +32,125 @@ local RANK_BORDER_DEFAULT_HEIGHT = 32
 local RANK_BORDER_OVERLAY_WIDTH = 64
 local RANK_BORDER_OVERLAY_HEIGHT = 34
 
+local function BuildLiveTalentNameLookup()
+    local lookup = {}
+    local numTabs = GetNumTalentTabs and GetNumTalentTabs() or 0
+
+    for tabIndex = 1, numTabs do
+        local numTalents = GetNumTalents(tabIndex) or 0
+        for talentIndex = 1, numTalents do
+            local name, icon, _, _, _, maxRank = GetTalentInfo(tabIndex, talentIndex)
+            if name then
+                if not lookup[name] then
+                    lookup[name] = {}
+                end
+                tinsert(lookup[name], {
+                    tab = tabIndex,
+                    index = talentIndex,
+                    icon = icon,
+                    maxRank = maxRank,
+                })
+            end
+        end
+    end
+
+    return lookup
+end
+
+local function ResolveTalentLocationFromSpellId(talentLookup, spellId, fallbackTalent)
+    if not spellId or not GetSpellInfo then
+        return nil
+    end
+
+    local spellName, _, spellIcon = GetSpellInfo(spellId)
+    if not spellName then
+        return nil
+    end
+
+    local candidates = talentLookup[spellName]
+    if not candidates or #candidates == 0 then
+        return nil
+    end
+
+    if #candidates == 1 then
+        return candidates[1]
+    end
+
+    if spellIcon then
+        for _, candidate in ipairs(candidates) do
+            if candidate.icon == spellIcon then
+                return candidate
+            end
+        end
+    end
+
+    if fallbackTalent and fallbackTalent.tab and fallbackTalent.index then
+        for _, candidate in ipairs(candidates) do
+            if candidate.tab == fallbackTalent.tab and candidate.index == fallbackTalent.index then
+                return candidate
+            end
+        end
+    end
+
+    return nil
+end
+
+local function HydrateTalentsForPlayer(sequence)
+    if not sequence or type(sequence.talents) ~= "table" then
+        return {}
+    end
+
+    if sequence.classToken ~= ts.DB.GetPlayerClassToken() then
+        return {}
+    end
+
+    local talentLookup = BuildLiveTalentNameLookup()
+    local hydrated = {}
+    local rankCounter = {}
+
+    for _, talent in ipairs(sequence.talents) do
+        local resolved = ResolveTalentLocationFromSpellId(talentLookup, talent.spellId, talent)
+        local hydratedTalent
+
+        if resolved then
+            local counterKey = tostring(resolved.tab) .. ":" .. tostring(resolved.index)
+            rankCounter[counterKey] = (rankCounter[counterKey] or 0) + 1
+            hydratedTalent = {
+                tab = resolved.tab,
+                index = resolved.index,
+                rank = talent.rank or rankCounter[counterKey],
+                level = talent.level,
+                spellId = talent.spellId,
+            }
+        else
+            hydratedTalent = {
+                tab = talent.tab,
+                index = talent.index,
+                rank = talent.rank,
+                level = talent.level,
+                spellId = talent.spellId,
+            }
+        end
+
+        tinsert(hydrated, hydratedTalent)
+    end
+
+    return hydrated
+end
+
 function ts:LoadAssignedSequenceForCurrentSpec()
     local sequence = ts.DB.GetAssignedSequence(ts.DB.GetActiveSpecSlot())
-    if (sequence) then
-        self:SetTalents(sequence.talents, sequence.id)
+    if (sequence and sequence.classToken == ts.DB.GetPlayerClassToken()) then
+        self:SetTalents(HydrateTalentsForPlayer(sequence), sequence.id)
     else
         self:SetTalents({}, nil)
     end
 end
 
 function ts:ActivateSequence(sequence)
-    if (not sequence) then return end
+    if (not sequence or sequence.classToken ~= ts.DB.GetPlayerClassToken()) then return end
     ts.DB.AssignSequenceToSpec(sequence, ts.DB.GetActiveSpecSlot())
-    self:SetTalents(sequence.talents, sequence.id)
+    self:SetTalents(HydrateTalentsForPlayer(sequence), sequence.id)
 end
 
 local function BuildPlannedRankLookup()
@@ -136,6 +244,9 @@ function ts.UpdateTalentButtonOverlays()
                     else
                         rankBorder:SetWidth(RANK_BORDER_DEFAULT_WIDTH)
                         rankBorder:SetHeight(RANK_BORDER_DEFAULT_HEIGHT)
+                        rankText:SetText("")
+                        rankBorder:Hide()
+                        rankText:Hide()
                         rankText:ClearAllPoints()
                         rankText:SetPoint("CENTER", rankBorder, "CENTER", 0, 0)
                     end
