@@ -3,11 +3,8 @@ local _, ts = ...
 local strlen = strlen
 local strsub = strsub
 local strfind = strfind
-local strlower = strlower
 local strupper = strupper
 local tinsert = tinsert
-local GetTalentInfo = GetTalentInfo
-local GetNumTalents = GetNumTalents
 local string_gmatch = string.gmatch
 
 ts.WowheadTalents = {}
@@ -107,66 +104,6 @@ local function GetWowheadClass(rawTalentString)
     return nil
 end
 
-local function FindTalentIndexByName(tabIndex, talentName)
-    if not talentName or not GetNumTalents then
-        return nil
-    end
-
-    for talentIndex = 1, GetNumTalents(tabIndex) do
-        local name = GetTalentInfo(tabIndex, talentIndex)
-        if name == talentName then
-            return talentIndex
-        end
-    end
-
-    return nil
-end
-
-local function GetFlavorTalentEntry(rawTalentString, currentTab, encodedId)
-    local flavorKey = GetWowheadFlavor(rawTalentString)
-    if not flavorKey then
-        return nil
-    end
-
-    local flavorMeta = GetFlavorMetadata(flavorKey)
-    local normalizedToken = GetEncodedTalentToken(flavorMeta, encodedId)
-    if not normalizedToken then
-        return nil
-    end
-
-    local classToken = GetWowheadClass(rawTalentString)
-    local flavorMap = ts.WowheadData and ts.WowheadData[flavorKey]
-    local classMap = flavorMap and flavorMap[classToken]
-    local treeMap = classMap and classMap[currentTab]
-    return treeMap and treeMap[normalizedToken] or nil
-end
-
-local function GetMappedTalentResult(rawTalentString, currentTab, encodedId)
-    local flavorMeta = GetFlavorMetadata(GetWowheadFlavor(rawTalentString))
-    local normalizedToken, isMaxRank = GetEncodedTalentToken(flavorMeta, encodedId)
-    local entry = GetFlavorTalentEntry(rawTalentString, currentTab, encodedId)
-    if not entry then
-        return nil, nil, "MAPPING_FAILED"
-    end
-
-    local importedClassToken = GetWowheadClass(rawTalentString)
-    local playerClassToken = ts.DB.GetPlayerClassToken()
-    if (importedClassToken and importedClassToken ~= playerClassToken) then
-        local talentIndex = strfind(flavorMeta.singlePointTokens, normalizedToken, 1, true)
-        if not talentIndex then
-            return nil, nil, "MAPPING_FAILED"
-        end
-        return talentIndex, entry, nil, isMaxRank
-    end
-
-    local talentIndex = FindTalentIndexByName(currentTab + 1, entry.name)
-    if not talentIndex then
-        return nil, nil, "MAPPING_FAILED"
-    end
-
-    return talentIndex, entry, nil, isMaxRank
-end
-
 local function HasTalentOrder(encodedString, flavorMeta)
     if not flavorMeta then
         return false
@@ -181,17 +118,11 @@ local function HasTalentOrder(encodedString, flavorMeta)
     return false
 end
 
-local function GetMaxRankForEntry(tabIndex, talentIndex, entry)
-    if (entry and type(entry.ranks) == "table" and #entry.ranks > 0) then
-        return #entry.ranks
-    end
-
-    local _, _, _, _, _, maxRank = GetTalentInfo(tabIndex, talentIndex)
-    return maxRank
-end
-
-local function GetTalentCounterKey(tabIndex, talentIndex)
-    return tostring(tabIndex) .. ":" .. tostring(talentIndex)
+local function GetTalentEntry(flavorKey, classToken, tab, token)
+    local flavorMap = ts.WowheadData and ts.WowheadData[flavorKey]
+    local classMap = flavorMap and flavorMap[classToken]
+    local treeMap = classMap and classMap[tab]
+    return treeMap and treeMap[token] or nil
 end
 
 function ts.WowheadTalents.GetTalents(talentString)
@@ -204,10 +135,10 @@ function ts.WowheadTalents.GetTalents(talentString)
     if not classToken then
         return nil, nil, "INVALID_URL"
     end
-    if not GetWowheadFlavor(rawTalentString) then
+    local flavorKey = GetWowheadFlavor(rawTalentString)
+    if not flavorKey then
         return nil, classToken, "INVALID_URL"
     end
-    local flavorKey = GetWowheadFlavor(rawTalentString)
     local flavorMeta = GetFlavorMetadata(flavorKey)
     if not flavorMeta then
         return nil, classToken, "IMPORT_FAILED"
@@ -234,38 +165,57 @@ function ts.WowheadTalents.GetTalents(talentString)
         if strfind("012", encodedId, 1, true) then
             currentTab = tonumber(encodedId)
         else
-            local talentIndex, entry, err, isMaxRank =
-                GetMappedTalentResult(rawTalentString, currentTab, encodedId)
-            if not talentIndex then
-                return nil, classToken, err or "IMPORT_FAILED"
+            local normalizedToken, isMaxRank = GetEncodedTalentToken(flavorMeta, encodedId)
+            if not normalizedToken then
+                return nil, classToken, "MAPPING_FAILED"
             end
-            local ranks = entry and entry.ranks
+
+            local entry = GetTalentEntry(flavorKey, classToken, currentTab, normalizedToken)
+            if not entry or not entry.ranks then
+                return nil, classToken, "MAPPING_FAILED"
+            end
+
             if isMaxRank then
-                local maxRank = GetMaxRankForEntry(currentTab + 1, talentIndex, entry)
-                if not maxRank or maxRank < 1 then
+                local maxRank = #entry.ranks
+                if maxRank < 1 then
                     return nil, classToken, "MAPPING_FAILED"
                 end
-                for j = 1, maxRank, 1 do
+                for j = 1, maxRank do
                     pointsSpent = pointsSpent + 1
+                    local spellId = entry.ranks[j]
+                    local resolved = ts.TalentResolver.Resolve(spellId, classToken)
+                    if not resolved then
+                        return nil, classToken, "MAPPING_FAILED"
+                    end
                     tinsert(talents, {
-                        tab = currentTab + 1,
-                        index = talentIndex,
+                        tab = resolved.tab,
+                        index = resolved.index,
                         rank = j,
                         level = GetTalentPointLevel(flavorMeta, pointsSpent),
-                        spellId = ranks and ranks[j],
+                        spellId = spellId,
                     })
                 end
             else
-                pointsSpent = pointsSpent + 1
-                local counterKey = GetTalentCounterKey(currentTab + 1, talentIndex)
+                local counterKey = currentTab .. ":" .. normalizedToken
                 talentCounter[counterKey] = (talentCounter[counterKey] or 0) + 1
                 local rank = talentCounter[counterKey]
+
+                local spellId = entry.ranks[rank]
+                if not spellId then
+                    return nil, classToken, "MAPPING_FAILED"
+                end
+
+                pointsSpent = pointsSpent + 1
+                local resolved = ts.TalentResolver.Resolve(spellId, classToken)
+                if not resolved then
+                    return nil, classToken, "MAPPING_FAILED"
+                end
                 tinsert(talents, {
-                    tab = currentTab + 1,
-                    index = talentIndex,
+                    tab = resolved.tab,
+                    index = resolved.index,
                     rank = rank,
                     level = GetTalentPointLevel(flavorMeta, pointsSpent),
-                    spellId = ranks and ranks[rank],
+                    spellId = spellId,
                 })
             end
         end
